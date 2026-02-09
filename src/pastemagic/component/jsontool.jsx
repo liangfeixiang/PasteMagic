@@ -2,22 +2,14 @@ import React, {useState, useCallback, useEffect, useRef} from 'react';
 
 // 工具：安全格式化 JSON
 const formatJson = (str) => {
-    try {
-        const obj = JSON.parse(str);
-        return JSON.stringify(obj, null, 4);
-    } catch (e) {
-        throw e;
-    }
+    const obj = JSON.parse(str);
+    return JSON.stringify(obj, null, 4);
 };
 
 // 工具：压缩 JSON（移除多余空白）
 const minifyJson = (str) => {
-    try {
-        const obj = JSON.parse(str);
-        return JSON.stringify(obj);
-    } catch (e) {
-        throw e;
-    }
+    const obj = JSON.parse(str);
+    return JSON.stringify(obj);
 };
 
 // 工具：定位 JSON 错误位置，并提取上下文
@@ -81,6 +73,7 @@ const locateJsonError = (str) => {
         };
     }
 };
+
 export default function JsonTool({content}) {
     // 判断content是否以{或[开头（忽略前面空格）
     const trimmedContent = content?.trim() || '';
@@ -183,54 +176,51 @@ export default function JsonTool({content}) {
         return () => {
             if (debounceTimerRef.current) {
                 console.log('🧹 Clearing timer on component unmount:', debounceTimerRef.current);
-                clearTimeout(debounceTimerRef.current);
+                clearTimeout(debouncetimerRef.current);
             }
         };
     }, [content, mode, processJson]); // Monitor content, mode and processJson changes
 
     return (
-        <div>
-            
-            <div className="w-full max-w-4xl mx-auto p-4 border rounded">
-                <h2 className="text-xl font-bold mb-4">JSON Formatting & Compression Tool</h2>
+        <div className="w-full max-w-4xl mx-auto p-4 border rounded">
+            <h2 className="text-xl font-bold mb-4">JSON Formatting & Compression Tool</h2>
 
-                {/* Control buttons */}
-                <div className="flex gap-2 mb-3">
-                    <button
-                        onClick={() => handleModeChange('format')}
-                        className={`px-3 py-1 rounded ${mode === 'format' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                    >
-                        Format
-                    </button>
-                    <button
-                        onClick={() => handleModeChange('minify')}
-                        className={`px-3 py-1 rounded ${mode === 'minify' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                    >
-                        Minify
-                    </button>
+            {/* Control buttons */}
+            <div className="flex gap-2 mb-3">
+                <button
+                    onClick={() => handleModeChange('format')}
+                    className={`px-3 py-1 rounded ${mode === 'format' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                >
+                    Format
+                </button>
+                <button
+                    onClick={() => handleModeChange('minify')}
+                    className={`px-3 py-1 rounded ${mode === 'minify' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                >
+                    Minify
+                </button>
+            </div>
+
+            {/* Error notification */}
+            {error && (
+                <div className="mt-2 p-3 bg-red-100 text-red-800 rounded text-sm font-mono">
+                    <strong>JSON parsing error:</strong>
+                    Line {error.line}, Column {error.column}
+                    <br/>
+                    <span className="text-gray-600">Context: </span>
+                    <span className="bg-yellow-200">{error.context.before}</span>
+                    <span className="bg-red-300 font-bold">{error.context.char || '␣'}</span>
+                    <span className="bg-yellow-200">{error.context.after}</span>
+                    <br/>
+                    <span className="text-xs text-gray-700">{error.rawMessage}</span>
                 </div>
-
-                {/* Error notification */}
-                {error && (
-                    <div className="mt-2 p-3 bg-red-100 text-red-800 rounded text-sm font-mono">
-                        <strong>JSON parsing error:</strong>
-                        Line {error.line}, Column {error.column}
-                        <br/>
-                        <span className="text-gray-600">Context: </span>
-                        <span className="bg-yellow-200">{error.context.before}</span>
-                        <span className="bg-red-300 font-bold">{error.context.char || '␣'}</span>
-                        <span className="bg-yellow-200">{error.context.after}</span>
-                        <br/>
-                        <span className="text-xs text-gray-700">{error.rawMessage}</span>
-                    </div>
-                )}
-                {/* Output box */}
-                <div className="mt-4">
-                    <h3 className="font-medium mb-1">Result:</h3>
-                    <pre className="w-full h-40 p-2 bg-gray-100 border rounded overflow-auto font-mono text-sm">
+            )}
+            {/* Output box */}
+            <div className="mt-4">
+                <h3 className="font-medium mb-1">Result:</h3>
+                <pre className="w-full h-40 p-2 bg-gray-100 border rounded overflow-auto font-mono text-sm">
                     {output || (error ? '—— Error ——' : 'Click "Process" to view results')}
                 </pre>
-                </div>
             </div>
         </div>
     );

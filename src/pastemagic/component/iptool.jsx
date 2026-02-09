@@ -11,7 +11,8 @@ const isValidIPv6 = (ip) => {
     // IPv6 full format: xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx
     // IPv6 compressed format: supports :: to represent consecutive 0 segments
     const ipv6FullRegex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-    const ipv6CompressedRegex = /^(([0-9a-fA-F]{1,4}:){1,7}:|:(([0-9a-fA-F]{1,4}:){1,7}|:)|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
+    // Simplified IPv6 compressed format detection
+    const ipv6CompressedRegex = /^[0-9a-fA-F:]+$/;
     
     return ipv6FullRegex.test(ip) || ipv6CompressedRegex.test(ip);
 };
@@ -64,7 +65,7 @@ const parseCIDR = (cidr) => {
         
         // Calculate broadcast address
         const hostBits = 32 - prefixLength;
-        const maxHosts = Math.pow(2, hostBits) - 2; // Subtract network address and broadcast address
+        // const maxHosts = Math.pow(2, hostBits) - 2; // Subtract network address and broadcast address
         
         // Calculate available IP count
         const totalIPCount = Math.pow(2, hostBits);
@@ -360,243 +361,241 @@ export default function IpTool({ content, showMyIp = true }) {
     }, [isEmptyContent, autoQueryDone, isFetchingMyIp]);
 
     return (
-        <div>
-            <div className="w-full border rounded p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold">IP Tool</h3>
-                </div>
-                
-                {/* Error notification */}
-                {error && (
-                    <div className="p-3 bg-red-100 text-red-800 rounded text-sm">
-                        <strong>Processing error:</strong> {error}
-                    </div>
-                )}
-
-                {/* Local IP display */}
-                {showMyIp && myIpInfo && (
-                    <div className="space-y-4">
-                        <div className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-semibold text-gray-700">🏠 Local Public IP</h4>
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                    🌐 Auto-acquired
-                                </span>
-                            </div>
-                            
-                            {myIpInfo.error ? (
-                                <div className="text-red-600 text-sm text-center py-2">
-                                    ❌ {myIpInfo.error}
-                                </div>
-                            ) : (
-                                <div className="text-center">
-                                    <div className="text-2xl font-mono font-bold text-gray-800 mb-1 max-w-full break-all overflow-x-auto">
-                                        {myIpInfo.ipAddress}
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                        IPv{myIpInfo.ipVersion} address
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Content IP information display */}
-                {content && (
-                    <>
-                        {/* IPv4 address information */}
-                        {results.type === 'ipv4' && results.ipInfo && (
-                            <div className="space-y-4">
-                                <div className="border rounded-lg p-4 bg-blue-50 shadow-sm">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="font-semibold text-gray-700">📍 IPv4 Address Information</h4>
-                                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                            🔍 Query results
-                                        </span>
-                                    </div>
-                                    {results.ipInfo.error ? (
-                                        <div className="text-red-600 text-sm text-center py-2">
-                                            {results.ipInfo.error}
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-2 gap-3 text-sm">
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">IP Address:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.ipAddress}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Country:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.countryName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Province:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.regionName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">City:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.cityName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Latitude:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.latitude}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Longitude:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.longitude}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">ISP:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.isp}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Organization:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.organization}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* IPv6 address information */}
-                        {results.type === 'ipv6' && results.ipInfo && (
-                            <div className="space-y-4">
-                                <div className="border rounded-lg p-4 bg-purple-50 shadow-sm">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="font-semibold text-gray-700">📍 IPv6 Address Information</h4>
-                                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                                            🔍 Query results
-                                        </span>
-                                    </div>
-                                    {results.ipInfo.error ? (
-                                        <div className="text-red-600 text-sm text-center py-2">
-                                            {results.ipInfo.error}
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-2 gap-3 text-sm">
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">IP Address:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.ipAddress}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Country:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.countryName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Province:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.regionName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">City:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.cityName}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Latitude:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.latitude}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Longitude:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.longitude}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">ISP:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.isp}</span>
-                                            </div>
-                                            <div className="flex">
-                                                <span className="w-16 text-right text-gray-600 mr-2">Organization:</span>
-                                                <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.organization}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* Invalid input notification */}
-                        {results.type === 'invalid' && !error && (
-                            <div className="text-center text-gray-500 py-6">
-                                <div className="text-3xl mb-2">❌</div>
-                                <div className="font-medium">Please enter a valid IP address or CIDR format</div>
-                                <div className="text-sm mt-1 text-gray-400">Example: 221.111.111.111 or 2001:db8::1 or 192.168.1.0/24</div>
-                            </div>
-                        )}
-                    </>
-                )}
-                
-                {/* IPv4 CIDR calculation results */}
-                {results.type === 'cidr' && results.cidrInfo && (
-                    <div className="space-y-4">
-                        <div className="border rounded p-3 bg-green-50">
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-sm text-gray-700">🧮 IPv4 Subnet Calculation Results</h4>
-                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                    🔢 IPv4 CIDR
-                                </span>
-                            </div>
-                            {results.cidrInfo.error ? (
-                                <div className="text-xs text-red-600">
-                                    {results.cidrInfo.error}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3 text-xs">
-                                    <div><strong>Network Address:</strong> {results.cidrInfo.networkAddress}</div>
-                                    <div><strong>Subnet Mask:</strong> {results.cidrInfo.subnetMask}</div>
-                                    <div><strong>CIDR Prefix:</strong> /{results.cidrInfo.prefixLength}</div>
-                                    <div><strong>Total IPs:</strong> {results.cidrInfo.totalIPCount}</div>
-                                    <div><strong>Available IPs:</strong> {results.cidrInfo.usableIPCount}</div>
-                                    <div><strong>Start IP:</strong> {results.cidrInfo.startIP}</div>
-                                    <div><strong>End IP:</strong> {results.cidrInfo.endIP}</div>
-                                    <div><strong>Broadcast Address:</strong> {results.cidrInfo.broadcastAddress}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-                
-                {/* IPv6 CIDR calculation results */}
-                {results.type === 'ipv6cidr' && results.cidrInfo && (
-                    <div className="space-y-4">
-                        <div className="border rounded p-3 bg-indigo-50">
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-sm text-gray-700">🧮 IPv6 Subnet Calculation Results</h4>
-                                <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
-                                    🔢 IPv6 CIDR
-                                </span>
-                            </div>
-                            {results.cidrInfo.error ? (
-                                <div className="text-xs text-red-600">
-                                    {results.cidrInfo.error}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3 text-xs">
-                                    <div className="break-all"><strong>Network Address:</strong> {results.cidrInfo.networkAddress}</div>
-                                    <div><strong>CIDR Prefix:</strong> /{results.cidrInfo.prefixLength}</div>
-                                    <div><strong>Total Addresses:</strong> {results.cidrInfo.totalAddresses}</div>
-                                    <div><strong>Available Addresses:</strong> {results.cidrInfo.usableAddresses}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-                
-                {results.type === 'invalid' && !error && (
-                    <div className="text-center text-gray-500 py-8">
-                        <div className="text-4xl mb-2">❌</div>
-                        <div>Please enter a valid IP address or CIDR format</div>
-                        <div className="text-sm mt-1">Example: 221.111.111.111 or 2001:db8::1 or 192.168.1.0/24 or 2001:db8::/32</div>
-                    </div>
-                )}
-
-                {/* Empty state notification */}
-                {!content && !myIpInfo && !isFetchingMyIp && (
-                    <div className="text-center text-gray-500 py-8">
-                        <div className="text-4xl mb-2">🌐</div>
-                        <div>Automatically querying local IP address...</div>
-                        <div className="text-sm mt-1">Supports IPv4/IPv6 address query and subnet calculation</div>
-                    </div>
-                )}
+        <div className="w-full border rounded p-4 space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold">IP Tool</h3>
             </div>
+            
+            {/* Error notification */}
+            {error && (
+                <div className="p-3 bg-red-100 text-red-800 rounded text-sm">
+                    <strong>Processing error:</strong> {error}
+                </div>
+            )}
+
+            {/* Local IP display */}
+            {showMyIp && myIpInfo && (
+                <div className="space-y-4">
+                    <div className="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-gray-700">🏠 Local Public IP</h4>
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                🌐 Auto-acquired
+                            </span>
+                        </div>
+                        
+                        {myIpInfo.error ? (
+                            <div className="text-red-600 text-sm text-center py-2">
+                                ❌ {myIpInfo.error}
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <div className="text-2xl font-mono font-bold text-gray-800 mb-1 max-w-full break-all overflow-x-auto">
+                                    {myIpInfo.ipAddress}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                    IPv{myIpInfo.ipVersion} address
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Content IP information display */}
+            {content && (
+                <>
+                    {/* IPv4 address information */}
+                    {results.type === 'ipv4' && results.ipInfo && (
+                        <div className="space-y-4">
+                            <div className="border rounded-lg p-4 bg-blue-50 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-semibold text-gray-700">📍 IPv4 Address Information</h4>
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                        🔍 Query results
+                                    </span>
+                                </div>
+                                {results.ipInfo.error ? (
+                                    <div className="text-red-600 text-sm text-center py-2">
+                                        {results.ipInfo.error}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">IP Address:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.ipAddress}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Country:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.countryName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Province:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.regionName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">City:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.cityName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Latitude:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.latitude}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Longitude:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.longitude}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">ISP:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.isp}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Organization:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.organization}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* IPv6 address information */}
+                    {results.type === 'ipv6' && results.ipInfo && (
+                        <div className="space-y-4">
+                            <div className="border rounded-lg p-4 bg-purple-50 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-semibold text-gray-700">📍 IPv6 Address Information</h4>
+                                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                        🔍 Query results
+                                    </span>
+                                </div>
+                                {results.ipInfo.error ? (
+                                    <div className="text-red-600 text-sm text-center py-2">
+                                        {results.ipInfo.error}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">IP Address:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.ipAddress}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Country:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.countryName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Province:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.regionName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">City:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.cityName}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Latitude:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.latitude}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Longitude:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.longitude}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">ISP:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.isp}</span>
+                                        </div>
+                                        <div className="flex">
+                                            <span className="w-16 text-right text-gray-600 mr-2">Organization:</span>
+                                            <span className="font-medium flex-1 min-w-0 truncate">{results.ipInfo.organization}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Invalid input notification */}
+                    {results.type === 'invalid' && !error && (
+                        <div className="text-center text-gray-500 py-6">
+                            <div className="text-3xl mb-2">❌</div>
+                            <div className="font-medium">Please enter a valid IP address or CIDR format</div>
+                            <div className="text-sm mt-1 text-gray-400">Example: 221.111.111.111 or 2001:db8::1 or 192.168.1.0/24</div>
+                        </div>
+                    )}
+                </>
+            )}
+            
+            {/* IPv4 CIDR calculation results */}
+            {results.type === 'cidr' && results.cidrInfo && (
+                <div className="space-y-4">
+                    <div className="border rounded p-3 bg-green-50">
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm text-gray-700">🧮 IPv4 Subnet Calculation Results</h4>
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                🔢 IPv4 CIDR
+                            </span>
+                        </div>
+                        {results.cidrInfo.error ? (
+                            <div className="text-xs text-red-600">
+                                {results.cidrInfo.error}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div><strong>Network Address:</strong> {results.cidrInfo.networkAddress}</div>
+                                <div><strong>Subnet Mask:</strong> {results.cidrInfo.subnetMask}</div>
+                                <div><strong>CIDR Prefix:</strong> /{results.cidrInfo.prefixLength}</div>
+                                <div><strong>Total IPs:</strong> {results.cidrInfo.totalIPCount}</div>
+                                <div><strong>Available IPs:</strong> {results.cidrInfo.usableIPCount}</div>
+                                <div><strong>Start IP:</strong> {results.cidrInfo.startIP}</div>
+                                <div><strong>End IP:</strong> {results.cidrInfo.endIP}</div>
+                                <div><strong>Broadcast Address:</strong> {results.cidrInfo.broadcastAddress}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            
+            {/* IPv6 CIDR calculation results */}
+            {results.type === 'ipv6cidr' && results.cidrInfo && (
+                <div className="space-y-4">
+                    <div className="border rounded p-3 bg-indigo-50">
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm text-gray-700">🧮 IPv6 Subnet Calculation Results</h4>
+                            <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                                🔢 IPv6 CIDR
+                            </span>
+                        </div>
+                        {results.cidrInfo.error ? (
+                            <div className="text-xs text-red-600">
+                                {results.cidrInfo.error}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="break-all"><strong>Network Address:</strong> {results.cidrInfo.networkAddress}</div>
+                                <div><strong>CIDR Prefix:</strong> /{results.cidrInfo.prefixLength}</div>
+                                <div><strong>Total Addresses:</strong> {results.cidrInfo.totalAddresses}</div>
+                                <div><strong>Available Addresses:</strong> {results.cidrInfo.usableAddresses}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            
+            {results.type === 'invalid' && !error && (
+                <div className="text-center text-gray-500 py-8">
+                    <div className="text-4xl mb-2">❌</div>
+                    <div>Please enter a valid IP address or CIDR format</div>
+                    <div className="text-sm mt-1">Example: 221.111.111.111 or 2001:db8::1 or 192.168.1.0/24 or 2001:db8::/32</div>
+                </div>
+            )}
+
+            {/* Empty state notification */}
+            {!content && !myIpInfo && !isFetchingMyIp && (
+                <div className="text-center text-gray-500 py-8">
+                    <div className="text-4xl mb-2">🌐</div>
+                    <div>Automatically querying local IP address...</div>
+                    <div className="text-sm mt-1">Supports IPv4/IPv6 address query and subnet calculation</div>
+                </div>
+            )}
         </div>
     );
 }

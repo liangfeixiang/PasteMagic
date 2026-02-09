@@ -144,7 +144,7 @@ const detectFormat = (content) => {
         }
     }
     
-    // Detect Unicode encoding (\uxxxx format)
+    // Detect Unicode encoding (\\uxxxx format)
     if (/\\u[0-9a-fA-F]{4}/.test(trimmed)) {
         return 'unicode';
     }
@@ -172,7 +172,7 @@ const detectFormat = (content) => {
     // Enhanced validation: exclude obvious JSON fragments, XML tags and other structured data
     if (/^[A-Za-z0-9+/]*={0,2}$/.test(trimmed) && trimmed.length % 4 === 0) {
         // Exclude obvious structured data patterns
-        const jsonLikePattern = /[{}\[\]:,"']/;
+        const jsonLikePattern = /[{}[\]:,"']/;
         const xmlLikePattern = /<[a-zA-Z][^>]*>/;
         const htmlLikePattern = /<[^>]+>/;
         
@@ -365,94 +365,92 @@ export default function EncodeTool({ content }) {
     const formats = getSupportedFormats();
 
     return (
-        <div>
-            <div className="w-full border rounded p-4 space-y-3">
-                <h3 className="text-lg font-bold">Encoding/Decoding Tool</h3>
-                
-                {/* Detected format */}
-                {detectedFormat && (
-                    <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                        🔍 Detected input format: <strong>{formats.find(f => f.key === detectedFormat)?.name || detectedFormat}</strong>
-                    </div>
-                )}
-
-                {/* Error notification */}
-                {error && (
-                    <div className="p-3 bg-red-100 text-red-800 rounded text-sm">
-                        <strong>Processing error:</strong> {error}
-                    </div>
-                )}
-
-                {/* Format switching buttons */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                    {formats.map(format => (
-                        <button
-                            key={format.key}
-                            onClick={() => setActiveFormat(format.key)}
-                            className={`px-3 py-1 text-sm rounded transition-colors ${
-                                activeFormat === format.key
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                        >
-                            {format.name}
-                        </button>
-                    ))}
+        <div className="w-full border rounded p-4 space-y-3">
+            <h3 className="text-lg font-bold">Encoding/Decoding Tool</h3>
+            
+            {/* Detected format */}
+            {detectedFormat && (
+                <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                    🔍 Detected input format: <strong>{formats.find(f => f.key === detectedFormat)?.name || detectedFormat}</strong>
                 </div>
+            )}
 
-                {/* Result display - only show currently selected format */}
-                <div className="space-y-3">
-                    {(() => {
-                        const format = formats.find(f => f.key === activeFormat);
-                        const result = results[activeFormat];
-                        
-                        if (!format || !result) return null;
-
-                        // Only display format when encoding or decoding succeeds
-                        const shouldShow = result.encodeSuccess || result.decodeSuccess;
-                        if (!shouldShow) return null;
-
-                        return (
-                            <div key={format.key} className="border rounded p-3">
-                                <h4 className="font-medium text-sm mb-2 text-gray-700">{format.name}</h4>
-                                
-                                {/* Display operation type and results */}
-                                {result.operation === 'encode' && result.encodeSuccess && (
-                                    <div className="mb-2">
-                                        <div className="text-xs text-gray-500 mb-1">🔄 Encoding result (Plain text → {format.name}):</div>
-                                        <div className="text-xs font-mono bg-green-100 px-2 py-1 rounded break-all">
-                                            {result.encoded}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {result.operation === 'decode' && result.decodeSuccess && (
-                                    <div>
-                                        <div className="text-xs text-gray-500 mb-1">🔓 Decoding result ({format.name} → Plain text):</div>
-                                        <div className="text-xs font-mono bg-blue-100 px-2 py-1 rounded break-all">
-                                            {result.decoded}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+            {/* Error notification */}
+            {error && (
+                <div className="p-3 bg-red-100 text-red-800 rounded text-sm">
+                    <strong>Processing error:</strong> {error}
                 </div>
+            )}
 
-                {/* Empty state notification */}
-                {!detectedFormat && Object.keys(results).length === 0 && !error && (
-                    <div className="text-center text-gray-500 py-4">
-                        Enter content to view encoding/decoding results
-                    </div>
-                )}
-
-                {/* Current format has no results notification */}
-                {results[activeFormat] && !results[activeFormat].encodeSuccess && !results[activeFormat].decodeSuccess && (
-                    <div className="text-center text-gray-500 py-4">
-                        Current format cannot process this content
-                    </div>
-                )}
+            {/* Format switching buttons */}
+            <div className="flex flex-wrap gap-2 mb-4">
+                {formats.map(format => (
+                    <button
+                        key={format.key}
+                        onClick={() => setActiveFormat(format.key)}
+                        className={`px-3 py-1 text-sm rounded transition-colors ${
+                            activeFormat === format.key
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                    >
+                        {format.name}
+                    </button>
+                ))}
             </div>
+
+            {/* Result display - only show currently selected format */}
+            <div className="space-y-3">
+                {(() => {
+                    const format = formats.find(f => f.key === activeFormat);
+                    const result = results[activeFormat];
+                    
+                    if (!format || !result) return null;
+
+                    // Only display format when encoding or decoding succeeds
+                    const shouldShow = result.encodeSuccess || result.decodeSuccess;
+                    if (!shouldShow) return null;
+
+                    return (
+                        <div key={format.key} className="border rounded p-3">
+                            <h4 className="font-medium text-sm mb-2 text-gray-700">{format.name}</h4>
+                            
+                            {/* Display operation type and results */}
+                            {result.operation === 'encode' && result.encodeSuccess && (
+                                <div className="mb-2">
+                                    <div className="text-xs text-gray-500 mb-1">🔄 Encoding result (Plain text → {format.name}):</div>
+                                    <div className="text-xs font-mono bg-green-100 px-2 py-1 rounded break-all">
+                                        {result.encoded}
+                                    </div>
+                                </div>
+                            )}
+
+                            {result.operation === 'decode' && result.decodeSuccess && (
+                                <div>
+                                    <div className="text-xs text-gray-500 mb-1">🔓 Decoding result ({format.name} → Plain text):</div>
+                                    <div className="text-xs font-mono bg-blue-100 px-2 py-1 rounded break-all">
+                                        {result.decoded}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+            </div>
+
+            {/* Empty state notification */}
+            {!detectedFormat && Object.keys(results).length === 0 && !error && (
+                <div className="text-center text-gray-500 py-4">
+                    Enter content to view encoding/decoding results
+                </div>
+            )}
+
+            {/* Current format has no results notification */}
+            {results[activeFormat] && !results[activeFormat].encodeSuccess && !results[activeFormat].decodeSuccess && (
+                <div className="text-center text-gray-500 py-4">
+                    Current format cannot process this content
+                </div>
+            )}
         </div>
     );
 }
