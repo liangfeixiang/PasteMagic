@@ -83,6 +83,11 @@ const WorldClock = () => {
             <div className="text-xs font-medium text-gray-700 mb-1">World Clock</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                    <span className="text-gray-600 w-16">New York:</span>
+                    <span className="font-mono">{timeData.newYork}</span>
+                </div>
+                <div className="flex items-center">
                     <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
                     <span className="text-gray-600 w-16">Beijing:</span>
                     <span className="font-mono">{timeData.beijing}</span>
@@ -97,11 +102,7 @@ const WorldClock = () => {
                     <span className="text-gray-600 w-16">Sydney:</span>
                     <span className="font-mono">{timeData.sydney}</span>
                 </div>
-                <div className="flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
-                    <span className="text-gray-600 w-16">New York:</span>
-                    <span className="font-mono">{timeData.newYork}</span>
-                </div>
+
             </div>
         </div>
     );

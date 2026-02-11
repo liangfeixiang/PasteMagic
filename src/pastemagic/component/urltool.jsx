@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCodeComponent from './qrcode';
 
 // URL utility functions
 
@@ -122,7 +122,6 @@ export default function UrlTool({ content }) {
         encoded: '',
         decoded: '',
         original: '',
-        qrcode: null,
         contentType: 'unknown', // 'url', 'url_encoded', 'base64', 'hex', 'other'
         decodedType: '' // Record decoding type
     });
@@ -220,19 +219,23 @@ export default function UrlTool({ content }) {
                 newResults.decodedType = 'Plain Text';
             }
 
-            // Generate QR code - determine QR code content based on content type
+            // Generate QR code content - determine QR code content based on content type
+            let qrCodeContent = '';
             if (newResults.contentType === 'url_encoded' || newResults.contentType === 'base64' || newResults.contentType === 'hex') {
                 // If it's various encoded URLs, use decoded content to generate QR code
-                newResults.qrcode = newResults.decoded;
+                qrCodeContent = newResults.decoded;
             } else if (newResults.contentType === 'url') {
                 // If it's regular URL, use original content to generate QR code
-                newResults.qrcode = trimmedContent;
+                qrCodeContent = trimmedContent;
             } else {
                 // Other cases use original content
-                newResults.qrcode = trimmedContent;
+                qrCodeContent = trimmedContent;
             }
 
-            setResults(newResults);
+            setResults({
+                ...newResults,
+                qrcode: qrCodeContent
+            });
         } catch (err) {
             setError(err.message);
         }
@@ -372,61 +375,12 @@ export default function UrlTool({ content }) {
                 )}
 
                 {/* QR code area - always displayed, automatically generated based on appropriate content */}
-                <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 mr-2">
-                                QR Code Size:
-                            </label>
-                            <select 
-                                value={qrSize}
-                                onChange={(e) => setQrSize(Number(e.target.value))}
-                                className="px-3 py-1 border rounded text-sm"
-                            >
-                                <option value={100}>100×100</option>
-                                <option value={150}>150×150</option>
-                                <option value={200}>200×200</option>
-                                <option value={250}>250×250</option>
-                                <option value={300}>300×300</option>
-                            </select>
-                        </div>
-                        
-                        <button
-                            onClick={() => processContent(content)} // Re-process to update QR code
-                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
-                        >
-                            🔄 Regenerate
-                        </button>
-                    </div>
-
-                    <div className="flex justify-center">
-                        {results.qrcode ? (
-                            <div className="text-center w-full">
-                                <div className="inline-block p-4 bg-white rounded-lg shadow-lg">
-                                    <QRCodeSVG
-                                        value={results.qrcode}
-                                        size={qrSize}
-                                        level="M"
-                                        includeMargin={true}
-                                        bgColor="#ffffff"
-                                        fgColor="#000000"
-                                    />
-                                </div>
-                                <div className="mt-3 text-sm text-gray-600">
-                                    📱 Scan QR code to access content
-                                </div>
-                                <div className="mt-1 text-xs text-gray-500 bg-gray-50 p-2 rounded break-all overflow-x-auto max-w-full">
-                                    QR code content: {results.qrcode}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center text-gray-500 py-8 w-full">
-                                <div className="text-4xl mb-2">📱</div>
-                                <div className="text-sm">Please enter content to generate QR code</div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <QRCodeComponent 
+                    content={results.qrcode}
+                    size={qrSize}
+                    onSizeChange={setQrSize}
+                    type="svg"
+                />
 
                 {/* Empty state notification */}
                 {!content && (

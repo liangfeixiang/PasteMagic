@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {Textarea} from "@/components/ui/textarea";
 import { Github } from "lucide-react";
 import { useChromePopupHeight } from "@/hooks/use-chrome-popup-height";
@@ -105,11 +105,27 @@ const detectContentType = (content) => {
     }
 
     // Completely not JSON format
-    try {
-        JSON.parse(trimmedContent);
-        return 'json';
-    } catch (e) {
-        // Not valid JSON
+    // 排除简单类型后再尝试解析
+    const isSimpleType = trimmedContent && (
+        // 纯数字（整数或小数）
+        /^\d+(\.\d+)?$/.test(trimmedContent) ||
+        // 纯字符串（带引号）
+        (/^".*"$/.test(trimmedContent) && trimmedContent.length > 2) ||
+        // 布尔值
+        trimmedContent === 'true' || 
+        trimmedContent === 'false' ||
+        // null值
+        trimmedContent === 'null'
+    );
+    
+    // 只有非简单类型才尝试JSON解析
+    if (!isSimpleType) {
+        try {
+            JSON.parse(trimmedContent);
+            return 'json';
+        } catch (e) {
+            // Not valid JSON
+        }
     }
 
     // Detect URL format - Consider as URL if starts with http
@@ -146,6 +162,14 @@ export default function PopUp() {
     const [content, setContent] = useState('');
     const maxHeight = useChromePopupHeight();
     const contentType = detectContentType(content);
+    const textareaRef = useRef(null);
+
+    // 自动聚焦到Textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    }, []);
 
     // Chrome扩展环境下强制控制滚动行为
     React.useEffect(() => {
@@ -159,9 +183,9 @@ export default function PopUp() {
             if (scrollableElement) {
                 const delta = e.deltaY;
                 scrollableElement.scrollTop += delta;
-                console.log('🖱️ Wheel event handled, scrolling Tool component');
+                // console.log('🖱️ Wheel event handled, scrolling Tool component');
             } else {
-                console.warn('⚠️ No scrollable element found');
+                // console.warn('⚠️ No scrollable element found');
             }
         };
 
@@ -230,6 +254,7 @@ export default function PopUp() {
                 </div>
                 <div>
                     <Textarea
+                        ref={textareaRef}
                         className='h-[100px]'
                         placeholder="Please enter content... The plugin will intelligently parse based on content"
                         id="message-2"

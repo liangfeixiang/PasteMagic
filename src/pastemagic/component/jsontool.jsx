@@ -75,14 +75,37 @@ const locateJsonError = (str) => {
 };
 
 export default function JsonTool({content}) {
-    // 判断content是否以{或[开头（忽略前面空格）
+    // 更严格的JSON检测逻辑
     const trimmedContent = content?.trim() || '';
-    const isValidJsonStart = trimmedContent && (trimmedContent.startsWith('{') || trimmedContent.startsWith('['));
+    
+    // 检查是否为有效的JSON结构（对象或数组）
+    const isValidJsonStructure = trimmedContent && (
+        trimmedContent.startsWith('{') || 
+        trimmedContent.startsWith('[')
+    );
+    
+    // 排除纯数字、字符串等简单类型
+    const isSimpleType = trimmedContent && (
+        // 纯数字（整数或小数）
+        /^\d+(\.\d+)?$/.test(trimmedContent) ||
+        // 纯字符串（带引号）
+        (/^".*"$/.test(trimmedContent) && trimmedContent.length > 2) ||
+        // 布尔值
+        trimmedContent === 'true' || 
+        trimmedContent === 'false' ||
+        // null值
+        trimmedContent === 'null'
+    );
+    
+    const isValidJsonStart = isValidJsonStructure && !isSimpleType;
     
     console.log('🔧 JsonTool渲染:', {
         content: content?.substring(0, 50) + '...',
         hasContent: !!content,
         isValidJsonStart,
+        isValidJsonStructure,
+        isSimpleType,
+        trimmedContent,
         timestamp: Date.now()
     });
 
@@ -176,7 +199,7 @@ export default function JsonTool({content}) {
         return () => {
             if (debounceTimerRef.current) {
                 console.log('🧹 Clearing timer on component unmount:', debounceTimerRef.current);
-                clearTimeout(debouncetimerRef.current);
+                clearTimeout(debounceTimerRef.current);
             }
         };
     }, [content, mode, processJson]); // Monitor content, mode and processJson changes

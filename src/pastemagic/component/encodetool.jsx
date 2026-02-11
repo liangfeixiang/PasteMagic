@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import QRCodeComponent from './qrcode';
 
 // Encoding/decoding utility functions
 
@@ -39,10 +40,32 @@ const decodeHex = (hex) => {
             // If length is odd, prepend 0
             hex = '0' + hex;
         }
-        // Convert hexadecimal string to byte array, then decode using TextDecoder in UTF-8 format
+        // Convert hexadecimal string to byte array
         const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        
+        // First try to decode as UTF-8 text
         const decoder = new TextDecoder('utf-8');
-        return decoder.decode(bytes);
+        const decodedText = decoder.decode(bytes);
+        
+        // Check if the decoded text contains mostly printable characters
+        // Consider printable: letters, numbers, common punctuation, spaces
+        const printableChars = decodedText.match(/[\x20-\x7E\u4e00-\u9fff]/g);
+        const printableRatio = printableChars ? printableChars.length / decodedText.length : 0;
+        
+        // If less than 70% of characters are printable, show as byte array
+        if (printableRatio < 0.7) {
+            // Return byte array representation with metadata
+            return {
+                value: bytes.map(byte => '0x' + byte.toString(16).padStart(2, '0')).join(' '),
+                isByteArray: true,
+                byteCount: bytes.length
+            };
+        }
+        
+        return {
+            value: decodedText,
+            isByteArray: false
+        };
     } catch (e) {
         throw new Error('Hex decoding failed: ' + e.message);
     }
@@ -212,7 +235,8 @@ const getSupportedFormats = () => [
     { key: 'url', name: 'URL Encoding', encode: encodeUrl, decode: decodeUrl },
     { key: 'unicode', name: 'Unicode', encode: encodeUnicode, decode: decodeUnicode },
     { key: 'ascii', name: 'ASCII Code', encode: encodeAscii, decode: decodeAscii },
-    { key: 'utf8-bytes', name: 'UTF-8 Bytes', encode: encodeUtf8Bytes, decode: decodeUtf8Bytes }
+    { key: 'utf8-bytes', name: 'UTF-8 Bytes', encode: encodeUtf8Bytes, decode: decodeUtf8Bytes },
+    { key: 'qrcode', name: 'QR Code', encode: null, decode: null, isQR: true }
 ];
 
 export default function EncodeTool({ content }) {
@@ -231,6 +255,7 @@ export default function EncodeTool({ content }) {
     const [error, setError] = useState(null);
     const [detectedFormat, setDetectedFormat] = useState(null);
     const [activeFormat, setActiveFormat] = useState('base64'); // Default activate Base64
+    const [qrSize, setQrSize] = useState(200);
     const debounceTimerRef = useRef(null);
     const lastProcessedContentRef = useRef('');
 
@@ -278,7 +303,18 @@ export default function EncodeTool({ content }) {
                 if (isInputInTargetFormat && format.decode) {
                     // Input content is already target format, perform decoding
                     try {
-                        result.decoded = format.decode(trimmedContent);
+                        const decodeResult = format.decode(trimmedContent);
+                        
+                        // Handle both string and object return types
+                        if (typeof decodeResult === 'object' && decodeResult !== null) {
+                            result.decoded = decodeResult.value;
+                            result.isByteArray = decodeResult.isByteArray;
+                            result.byteCount = decodeResult.byteCount;
+                        } else {
+                            result.decoded = decodeResult;
+                            result.isByteArray = false;
+                        }
+                        
                         result.decodeSuccess = true;
                         result.operation = 'decode';
                     } catch (e) {
@@ -304,10 +340,18 @@ export default function EncodeTool({ content }) {
             if (detected === 'unicode' || detected === 'hex' || detected === 'utf8-bytes' || detected === 'ascii' || detected === 'url') {
                 setActiveFormat(detected);
             }
+            
+            // Generate QR code for plain text
+            if (detected === 'plain' && trimmedContent) {
+                // QR code generation is now handled by QRCodeComponent
+                // No need to generate here since it's only shown when activeFormat === 'qrcode'
+            } else {
+                // No QR code data needed for other formats
+            }
         } catch (err) {
             setError(err.message);
         }
-    }, []);
+    }, [qrSize]);
 
     // Debounce handling for content changes
     useEffect(() => {
@@ -365,8 +409,9 @@ export default function EncodeTool({ content }) {
     const formats = getSupportedFormats();
 
     return (
-        <div className="w-full border rounded p-4 space-y-3">
-            <h3 className="text-lg font-bold">Encoding/Decoding Tool</h3>
+        <div>
+            <div className="w-full border rounded p-4 space-y-4">
+                <h3 className="text-lg font-bold">Encoding/Decoding Tool</h3>
             
             {/* Detected format */}
             {detectedFormat && (
@@ -399,49 +444,73 @@ export default function EncodeTool({ content }) {
                 ))}
             </div>
 
-            {/* Result display - only show currently selected format */}
-            <div className="space-y-3">
-                {(() => {
-                    const format = formats.find(f => f.key === activeFormat);
-                    const result = results[activeFormat];
-                    
-                    if (!format || !result) return null;
+            {/* QR Code Generator Section */}
+            {activeFormat === 'qrcode' && (
+                <QRCodeComponent 
+                    content={content?.trim() || ''}
+                    size={qrSize}
+                    onSizeChange={setQrSize}
+                    type="svg"
+                />
+            )}
 
-                    // Only display format when encoding or decoding succeeds
-                    const shouldShow = result.encodeSuccess || result.decodeSuccess;
-                    if (!shouldShow) return null;
+            {/* Result display - only show currently selected format (except QR Code) */}
+            {activeFormat !== 'qrcode' && (
+                <div className="space-y-4">
+                    {(() => {
+                        const format = formats.find(f => f.key === activeFormat);
+                        const result = results[activeFormat];
+                        
+                        if (!format || !result) return null;
 
-                    return (
-                        <div key={format.key} className="border rounded p-3">
-                            <h4 className="font-medium text-sm mb-2 text-gray-700">{format.name}</h4>
-                            
-                            {/* Display operation type and results */}
-                            {result.operation === 'encode' && result.encodeSuccess && (
-                                <div className="mb-2">
-                                    <div className="text-xs text-gray-500 mb-1">🔄 Encoding result (Plain text → {format.name}):</div>
-                                    <div className="text-xs font-mono bg-green-100 px-2 py-1 rounded break-all">
-                                        {result.encoded}
+                        // Only display format when encoding or decoding succeeds
+                        const shouldShow = result.encodeSuccess || result.decodeSuccess;
+                        if (!shouldShow) return null;
+
+                        return (
+                            <div key={format.key} className="border rounded p-3">
+                                <h4 className="font-medium text-sm mb-2 text-gray-700">{format.name}</h4>
+                                
+                                {/* Display operation type and results */}
+                                {result.operation === 'encode' && result.encodeSuccess && (
+                                    <div className="mb-2">
+                                        <div className="text-xs text-gray-500 mb-1">🔄 Encoding result (Plain text → {format.name}):</div>
+                                        <div className="text-xs font-mono bg-green-100 px-2 py-1 rounded break-all">
+                                            {result.encoded}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {result.operation === 'decode' && result.decodeSuccess && (
-                                <div>
-                                    <div className="text-xs text-gray-500 mb-1">🔓 Decoding result ({format.name} → Plain text):</div>
-                                    <div className="text-xs font-mono bg-blue-100 px-2 py-1 rounded break-all">
-                                        {result.decoded}
+                                {result.operation === 'decode' && result.decodeSuccess && (
+                                    <div>
+                                        <div className="text-xs text-gray-500 mb-1">
+                                            🔓 Decoding result ({format.name} → Plain text):
+                                        </div>
+                                        
+                                        {/* Byte array hint */}
+                                        {result.isByteArray && (
+                                            <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded mb-2 flex items-center gap-1">
+                                                ⚠️ Binary data detected, displayed as byte code format (Total {result.byteCount} bytes)
+                                            </div>
+                                        )}
+                                        
+                                        <div className="text-xs font-mono bg-blue-100 px-2 py-1 rounded break-all">
+                                            {result.decoded}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })()}
-            </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
 
             {/* Empty state notification */}
             {!detectedFormat && Object.keys(results).length === 0 && !error && (
-                <div className="text-center text-gray-500 py-4">
-                    Enter content to view encoding/decoding results
+                <div className="text-center text-gray-500 py-8">
+                    <div className="text-4xl mb-2">🔧</div>
+                    <div>Enter content to view encoding/decoding results</div>
+                    <div className="text-sm mt-1">Supports multiple encoding formats and QR code generation</div>
                 </div>
             )}
 
@@ -452,5 +521,6 @@ export default function EncodeTool({ content }) {
                 </div>
             )}
         </div>
+    </div>
     );
 }
