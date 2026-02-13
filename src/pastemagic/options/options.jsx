@@ -12,6 +12,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { StorageUtils } from '../utils/storageutils.js';
 import KeyConfigManager from '../component/keyconfigmanager.jsx';
+import CipherTestComponent from '../component/ciphertest.jsx';
 
 // 菜单项配置
 const menuItems = [
@@ -283,163 +284,26 @@ export default function OptionsPage() {
     switch (activeSection) {
       case 'key-config':
         return (
-          <div className="space-y-6 h-full">
+          <div className="space-y-6 h-full w-full">
             {/* 配置管理主区域 - 占据更多空间 */}
-            <div className="h-[calc(100vh-180px)]">
+            <div className="w-full">
               <KeyConfigManager
                 initialConfigs={savedConfigs}
                 onConfigChange={handleConfigChange}
                 showGenerateButton={true}
               />
             </div>
-            
-            {/* 配置操作区域 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>💾 配置管理</span>
-                  <div className="text-sm text-muted-foreground">
-                    当前配置: {currentConfig?.name || '未选择'}
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => saveAllConfigs(savedConfigs)}>
-                    💾 保存所有配置
-                  </Button>
-                  <Button variant="secondary" onClick={loadSavedConfigs}>
-                    📥 重新加载配置
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    // 可以添加导出功能
-                  }}>
-                    📤 导出配置
-                  </Button>
-                </div>
-                
-                {currentConfig && (
-                  <div className="p-4 bg-muted rounded-lg border">
-                    <h3 className="font-medium mb-3 text-lg">当前配置详情</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">配置名称:</span> 
-                        <span className="font-medium">{currentConfig.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">算法类型:</span> 
-                        <span className="font-medium">{currentConfig.algorithm || '未设置'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">创建时间:</span> 
-                        <span className="font-medium">{new Date(currentConfig.createdAt).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">RSA公钥:</span> 
-                        <span className={currentConfig.publicKey ? 'text-green-600' : 'text-red-600'}>
-                          {currentConfig.publicKey ? '✅ 已配置' : '❌ 未配置'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">RSA私钥:</span> 
-                        <span className={currentConfig.privateKey ? 'text-green-600' : 'text-red-600'}>
-                          {currentConfig.privateKey ? '✅ 已配置' : '❌ 未配置'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">对称密钥:</span> 
-                        <span className={currentConfig.key ? 'text-green-600' : 'text-red-600'}>
-                          {currentConfig.key ? '✅ 已配置' : '❌ 未配置'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
         );
 
       case 'encryption-test':
         return (
           <div className="space-y-6 h-full">
-            <Card className="h-full flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-xl">🧪 加密解密测试</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-6 overflow-auto">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-                  {/* 左侧：输入区域 */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="testText" className="text-base font-medium">测试文本</Label>
-                      <Textarea
-                        id="testText"
-                        value={testData.text}
-                        onChange={(e) => setTestData(prev => ({ ...prev, text: e.target.value }))}
-                        placeholder="请输入要测试的文本内容"
-                        className="min-h-[120px]"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="algorithm" className="text-base font-medium">选择算法</Label>
-                      <Select 
-                        value={testData.algorithm} 
-                        onValueChange={(value) => {
-                          setTestData(prev => ({ 
-                            ...prev, 
-                            algorithm: value,
-                            encrypted: '',
-                            decrypted: ''
-                          }));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="RSA">RSA</SelectItem>
-                          <SelectItem value="AES/CBC/PKCS5Padding">AES/CBC/PKCS5Padding</SelectItem>
-                          <SelectItem value="AES/ECB/PKCS5Padding">AES/ECB/PKCS5Padding</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <Button onClick={encryptTest} size="lg">🔒 加密</Button>
-                      <Button variant="success" onClick={decryptTest} size="lg">🔓 解密</Button>
-                      <Button variant="secondary" onClick={fullTest} size="lg">🧪 完整测试</Button>
-                    </div>
-                  </div>
-                  
-                  {/* 右侧：结果显示区域 */}
-                  <div className="space-y-4">
-                    <div className="space-y-2 h-1/2">
-                      <Label htmlFor="encryptedText" className="text-base font-medium">加密结果</Label>
-                      <Textarea
-                        id="encryptedText"
-                        value={testData.encrypted}
-                        readOnly
-                        placeholder="加密结果将显示在这里"
-                        className="font-mono text-sm bg-muted h-full min-h-[120px]"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2 h-1/2">
-                      <Label htmlFor="decryptedText" className="text-base font-medium">解密结果</Label>
-                      <Textarea
-                        id="decryptedText"
-                        value={testData.decrypted}
-                        readOnly
-                        placeholder="解密结果将显示在这里"
-                        className="font-mono text-sm bg-muted h-full min-h-[120px]"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <CipherTestComponent 
+              configs={savedConfigs}
+              selectedConfig={currentConfig}
+              className="h-full"
+            />
           </div>
         );
 
@@ -506,7 +370,7 @@ export default function OptionsPage() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-screen bg-background w-full">
         {/* 左侧菜单栏 */}
         <Sidebar className="w-64 border-r flex-shrink-0 relative z-10">
           <SidebarContent>
@@ -535,7 +399,7 @@ export default function OptionsPage() {
         </Sidebar>
 
         {/* 主内容区域 */}
-        <div className="flex-1 overflow-auto relative">
+        <div className="flex-1 overflow-auto relative w-full">
           <div className="p-4 min-h-full">
             <div className="w-full">
               {renderContent()}

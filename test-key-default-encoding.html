@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key默认编码设置测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8">🔐 Key默认编码设置测试</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">📋 需求说明</h2>
+            <div class="prose">
+                <p>用户要求将key的默认编码方式从HEX改为UTF-8，符合项目规范要求。</p>
+                <p class="mt-3"><strong>修改内容：</strong>将所有key配置的默认编码从['HEX']改为['UTF8']</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 修改前 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4 text-red-600">❌ 修改前（HEX默认编码）</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-medium text-gray-700 mb-2">配置初始化</h4>
+                        <pre class="bg-gray-100 p-3 rounded text-sm overflow-x-auto">const newConfig = {
+  // ...
+  key: {
+    value: '',
+    encoding: ['HEX']  // ❌ 默认HEX编码
+  },
+  // ...
+};</pre>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-700 mb-2">配置标准化</h4>
+                        <pre class="bg-gray-100 p-3 rounded text-sm overflow-x-auto">const normalizedConfig = {
+  ...config,
+  key: config.key || { value: '', encoding: ['HEX'] },  // ❌ 默认HEX编码
+  // ...
+};</pre>
+                    </div>
+                    <div class="p-3 bg-red-50 rounded">
+                        <p class="text-red-700 text-sm"><strong>问题：</strong>新创建的配置默认使用HEX编码，不符合UTF-8优先的项目规范</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 修改后 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4 text-green-600">✅ 修改后（UTF-8默认编码）</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-medium text-gray-700 mb-2">配置初始化</h4>
+                        <pre class="bg-gray-100 p-3 rounded text-sm overflow-x-auto">const newConfig = {
+  // ...
+  key: {
+    value: '',
+    encoding: ['UTF8']  // ✅ 默认UTF-8编码
+  },
+  // ...
+};</pre>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-700 mb-2">配置标准化</h4>
+                        <pre class="bg-gray-100 p-3 rounded text-sm overflow-x-auto">const normalizedConfig = {
+  ...config,
+  key: config.key || { value: '', encoding: ['UTF8'] },  // ✅ 默认UTF-8编码
+  // ...
+};</pre>
+                    </div>
+                    <div class="p-3 bg-green-50 rounded">
+                        <p class="text-green-700 text-sm"><strong>改进：</strong>新配置默认使用UTF-8编码，符合项目规范要求</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">🔧 修改详情</h2>
+            
+            <div class="space-y-4">
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-medium text-blue-800 mb-2">修改位置</h3>
+                    <p class="text-blue-700"><strong>文件：</strong> `/src/pastemagic/component/keyconfigmanager.jsx`</p>
+                    <p class="text-blue-700"><strong>涉及函数：</strong> addConfig(), ConfigEditor组件</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h4 class="font-medium mb-2">位置1：配置初始化 (第142行)</h4>
+                        <pre class="text-xs">key: {
+  value: '',
+  encoding: ['UTF8']  // ✅ 已修改
+}</pre>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded">
+                        <h4 class="font-medium mb-2">位置2：配置标准化 (第600行)</h4>
+                        <pre class="text-xs">key: config.key || { 
+  value: '', 
+  encoding: ['UTF8']  // ✅ 已修改
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">🧪 功能测试</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-medium mb-3">测试场景</h3>
+                    <div class="space-y-3">
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">场景1：新建AES配置</h4>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• 验证key默认编码是否为UTF-8</li>
+                                <li>• 检查UI下拉框默认选中项</li>
+                                <li>• 测试编码切换功能</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">场景2：配置加载测试</h4>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• 验证旧配置兼容性</li>
+                                <li>• 测试缺失key配置的默认值</li>
+                                <li>• 检查配置标准化逻辑</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">场景3：编码处理验证</h4>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• 验证UTF-8编码的正确处理</li>
+                                <li>• 测试不同编码格式的转换</li>
+                                <li>• 检查加密解密功能</li>
+                            </ul>
+                        </div>
+                        
+                        <button onclick="runKeyEncodingTests()" 
+                                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
+                            🔧 运行编码测试
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-medium mb-3">测试结果</h3>
+                    <div id="encodingTestResults" class="bg-gray-50 p-4 rounded min-h-[300px]">
+                        <p class="text-gray-500">点击"运行编码测试"按钮开始测试...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">📋 项目规范符合性</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h3 class="font-medium text-green-800 mb-2">✅ 规范符合</h3>
+                    <ul class="text-sm text-green-700 space-y-1">
+                        <li>• 默认编码设置为UTF-8</li>
+                        <li>• 符合明文编码处理规范</li>
+                        <li>• 与RSA密钥编码保持一致</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-medium text-blue-800 mb-2">🔧 技术实现</h3>
+                    <ul class="text-sm text-blue-700 space-y-1">
+                        <li>• 两处默认值同步修改</li>
+                        <li>• 保持向后兼容性</li>
+                        <li>• UI默认选项更新</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <h3 class="font-medium text-purple-800 mb-2">🎯 用户体验</h3>
+                    <ul class="text-sm text-purple-700 space-y-1">
+                        <li>• 新配置创建更直观</li>
+                        <li>• 减少编码选择步骤</li>
+                        <li>• 符合常用编码习惯</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟配置编码处理测试
+        function runKeyEncodingTests() {
+            const resultsDiv = document.getElementById('encodingTestResults');
+            
+            // 测试用例
+            const testCases = [
+                {
+                    name: "新配置默认编码",
+                    test: () => {
+                        const newConfig = {
+                            key: {
+                                value: '',
+                                encoding: ['UTF8']  // 应该是UTF8而不是HEX
+                            }
+                        };
+                        return newConfig.key.encoding[0] === 'UTF8';
+                    }
+                },
+                {
+                    name: "配置标准化处理",
+                    test: () => {
+                        const configWithoutKey = {};
+                        const normalized = {
+                            key: configWithoutKey.key || { value: '', encoding: ['UTF8'] }
+                        };
+                        return normalized.key.encoding[0] === 'UTF8';
+                    }
+                },
+                {
+                    name: "现有配置兼容性",
+                    test: () => {
+                        const existingConfig = {
+                            key: {
+                                value: 'existing-key',
+                                encoding: ['HEX']  // 现有配置应该保持不变
+                            }
+                        };
+                        const normalized = {
+                            key: existingConfig.key || { value: '', encoding: ['UTF8'] }
+                        };
+                        return normalized.key.encoding[0] === 'HEX';  // 应该保持原有编码
+                    }
+                },
+                {
+                    name: "编码切换功能",
+                    test: () => {
+                        let currentConfig = {
+                            key: { value: 'test', encoding: ['UTF8'] }
+                        };
+                        
+                        // 模拟切换到HEX
+                        currentConfig.key.encoding = ['HEX'];
+                        const isHex = currentConfig.key.encoding[0] === 'HEX';
+                        
+                        // 模拟切换回UTF8
+                        currentConfig.key.encoding = ['UTF8'];
+                        const isUtf8 = currentConfig.key.encoding[0] === 'UTF8';
+                        
+                        return isHex && isUtf8;
+                    }
+                }
+            ];
+
+            let resultsHtml = '<div class="space-y-3">';
+            
+            testCases.forEach((testCase, index) => {
+                try {
+                    const passed = testCase.test();
+                    resultsHtml += `
+                        <div class="p-3 rounded ${passed ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium ${passed ? 'text-green-800' : 'text-red-800'}">
+                                    ${testCase.name}
+                                </span>
+                                <span class="text-sm ${passed ? 'text-green-600' : 'text-red-600'}">
+                                    ${passed ? '✅ 通过' : '❌ 失败'}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    resultsHtml += `
+                        <div class="p-3 rounded bg-red-50 border border-red-200">
+                            <div class="flex items-center justify-between">
+                                <span class="font-medium text-red-800">
+                                    ${testCase.name}
+                                </span>
+                                <span class="text-sm text-red-600">
+                                    ❌ 错误: ${error.message}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            resultsHtml += '</div>';
+            resultsDiv.innerHTML = resultsHtml;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA密文识别测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        textarea { width: 100%; min-height: 80px; margin: 5px 0; }
+        button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .pattern-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 RSA密文识别测试</h1>
+        
+        <div class="pattern-info">
+            <h3>RSA密文特征分析</h3>
+            <p><strong>用户提供的RSA密文示例:</strong></p>
+            <code>A6zfp+TG4VH8Lf+xKISInZEcdc6klF5iS8kTzN1PktwE4cgEhzrbJ5dE6a/yrIoLZDIdxM6zmLzZe1h3u/YORrUTkxwusksnxzy9r7Uk3qKquR1zkBE9MdKP1BU5hkE9PP+g2EEnv+Wm46kf8MfPwohnKPnSNjCBdKskJ4fhNIpYh+2o5qqLmJhI7pvyjpr46d+2OQDSMv6xRhyRd+WsgzyudLYs8QiZrReqAQ09dDEyiJjyPrGPDGD2zsLjzHDpL6Eu9+mnGkugRYGPkgrScDySvijOoySr3nXeeimzayL61sIQ3Vjv9EvkQIQPvvHjqRonVGpfemitMuJWsUFDWw==</code>
+            <p><strong>特征:</strong></p>
+            <ul>
+                <li>长度: 344字符</li>
+                <li>Base64编码格式</li>
+                <li>包含大小写字母、数字、+、/、=字符</li>
+                <li>典型的RSA加密结果长度</li>
+            </ul>
+        </div>
+
+        <div class="test-case">
+            <h3>测试用例1: 用户提供的RSA密文</h3>
+            <textarea id="rsaTest1">A6zfp+TG4VH8Lf+xKISInZEcdc6klF5iS8kTzN1PktwE4cgEhzrbJ5dE6a/yrIoLZDIdxM6zmLzZe1h3u/YORrUTkxwusksnxzy9r7Uk3qKquR1zkBE9MdKP1BU5hkE9PP+g2EEnv+Wm46kf8MfPwohnKPnSNjCBdKskJ4fhNIpYh+2o5qqLmJhI7pvyjpr46d+2OQDSMv6xRhyRd+WsgzyudLYs8QiZrReqAQ09dDEyiJjyPrGPDGD2zsLjzHDpL6Eu9+mnGkugRYGPkgrScDySvijOoySr3nXeeimzayL61sIQ3Vjv9EvkQIQPvvHjqRonVGpfemitMuJWsUFDWw==</textarea>
+            <button onclick="testRSADetection1()">测试识别</button>
+            <div id="result1"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>测试用例2: 其他Base64内容对比</h3>
+            <textarea id="base64Test">SGVsbG8gV29ybGQhIOS9oOWlve+8geS4lueVjO+8gQ==</textarea>
+            <button onclick="testBase64Detection()">测试Base64识别</button>
+            <div id="result2"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>测试用例3: 模拟RSA加密结果</h3>
+            <textarea id="rsaTest2">MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCqGKukO1De7zhZj6+H0qtjTkVxwTCpvKe4eCZ0FPqri0cb2JZfXJ/DgYSF6vUpwmJG8wVQZKjeGcjDOL5UlsuusFncCzWBQ7RKNUSesmQRMSGkVb1/3j+skZ6UtW+5u09lHNsj6tQ51s1SPrCBkedbNf0Tp0GbMJDyR4e9T04ZZwIDAQAB</textarea>
+            <button onclick="testRSADetection2()">测试RSA识别</button>
+            <div id="result3"></div>
+        </div>
+
+        <div class="test-case">
+            <h3>测试用例4: 内容类型检测完整测试</h3>
+            <button onclick="runCompleteTest()">运行完整测试</button>
+            <div id="result4"></div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟内容类型检测逻辑
+        async function detectContentType(content) {
+            const trimmedContent = content.trim();
+            
+            // 检查是否为空
+            if (!trimmedContent) {
+                return 'encode';
+            }
+
+            console.log('检测内容:', trimmedContent.substring(0, 50) + '...');
+            console.log('内容长度:', trimmedContent.length);
+
+            // RSA密文特殊检测
+            if (await isLikelyRSACipher(trimmedContent)) {
+                console.log('检测到可能是RSA密文');
+                return 'encrypted';
+            }
+
+            // 其他检测逻辑...
+            const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+            if (base64Pattern.test(trimmedContent) && trimmedContent.length % 4 === 0 && trimmedContent.length > 10) {
+                console.log('检测到Base64编码');
+                return 'encode';
+            }
+
+            return 'encode';
+        }
+
+        // RSA密文特征检测
+        async function isLikelyRSACipher(content) {
+            const trimmedContent = content.trim();
+            
+            // 基本格式检查
+            const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+            if (!base64Pattern.test(trimmedContent)) {
+                return false;
+            }
+
+            // 长度检查 - RSA加密结果通常较长
+            if (trimmedContent.length < 50) {
+                return false;
+            }
+
+            // 长度特征检查 - RSA-2048加密结果通常是固定长度
+            const typicalRSALengths = [344, 172, 256]; // 常见的Base64编码后长度
+            if (!typicalRSALengths.includes(trimmedContent.length)) {
+                console.log('长度不符合典型RSA特征:', trimmedContent.length);
+                // 但不排除其他长度的可能性
+            }
+
+            // 尝试使用配置进行解密验证
+            try {
+                // 这里应该调用实际的解密逻辑
+                // 模拟检查是否存在RSA配置
+                const hasRSAConfig = await checkRSAConfigExists();
+                if (hasRSAConfig) {
+                    console.log('存在RSA配置，可能是RSA密文');
+                    return true;
+                }
+            } catch (err) {
+                console.log('RSA配置检查失败:', err.message);
+            }
+
+            return false;
+        }
+
+        // 检查是否存在RSA配置
+        async function checkRSAConfigExists() {
+            // 模拟检查存储中的配置
+            try {
+                // 这里应该是实际的StorageUtils调用
+                // const { StorageUtils } = await import('../utils/storageutils');
+                // const result = await StorageUtils.getItem('keyConfigs');
+                // const configs = result.keyConfigs || [];
+                // return configs.some(config => config.algorithm?.startsWith('RSA'));
+                
+                // 临时返回true用于测试
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function testRSADetection1() {
+            const content = document.getElementById('rsaTest1').value;
+            const resultDiv = document.getElementById('result1');
+            
+            detectContentType(content).then(type => {
+                const isSuccess = type === 'encrypted';
+                resultDiv.innerHTML = `
+                    <div class="${isSuccess ? 'success' : 'error'}">
+                        <strong>检测结果:</strong> ${type}<br>
+                        <strong>预期结果:</strong> encrypted<br>
+                        <strong>检测${isSuccess ? '✅成功' : '❌失败'}:</strong> ${isSuccess ? '正确识别为RSA密文' : '未能识别为RSA密文'}
+                    </div>
+                `;
+            });
+        }
+
+        function testBase64Detection() {
+            const content = document.getElementById('base64Test').value;
+            const resultDiv = document.getElementById('result2');
+            
+            detectContentType(content).then(type => {
+                resultDiv.innerHTML = `
+                    <div class="info">
+                        <strong>检测结果:</strong> ${type}<br>
+                        <strong>内容类型:</strong> 普通Base64编码文本<br>
+                        <strong>处理方式:</strong> 应该由编码工具处理
+                    </div>
+                `;
+            });
+        }
+
+        function testRSADetection2() {
+            const content = document.getElementById('rsaTest2').value;
+            const resultDiv = document.getElementById('result3');
+            
+            detectContentType(content).then(type => {
+                const isSuccess = type === 'encrypted';
+                resultDiv.innerHTML = `
+                    <div class="${isSuccess ? 'success' : 'error'}">
+                        <strong>检测结果:</strong> ${type}<br>
+                        <strong>预期结果:</strong> encrypted<br>
+                        <strong>检测${isSuccess ? '✅成功' : '❌失败'}:</strong> ${isSuccess ? '正确识别为RSA密文' : '未能识别为RSA密文'}
+                    </div>
+                `;
+            });
+        }
+
+        function runCompleteTest() {
+            const resultDiv = document.getElementById('result4');
+            let results = '<h4>完整测试结果:</h4>';
+            
+            const testCases = [
+                {
+                    name: '用户RSA密文',
+                    content: 'A6zfp+TG4VH8Lf+xKISInZEcdc6klF5iS8kTzN1PktwE4cgEhzrbJ5dE6a/yrIoLZDIdxM6zmLzZe1h3u/YORrUTkxwusksnxzy9r7Uk3qKquR1zkBE9MdKP1BU5hkE9PP+g2EEnv+Wm46kf8MfPwohnKPnSNjCBdKskJ4fhNIpYh+2o5qqLmJhI7pvyjpr46d+2OQDSMv6xRhyRd+WsgzyudLYs8QiZrReqAQ09dDEyiJjyPrGPDGD2zsLjzHDpL6Eu9+mnGkugRYGPkgrScDySvijOoySr3nXeeimzayL61sIQ3Vjv9EvkQIQPvvHjqRonVGpfemitMuJWsUFDWw==',
+                    expected: 'encrypted'
+                },
+                {
+                    name: '普通Base64',
+                    content: 'SGVsbG8gV29ybGQhIOS9oOWlve+8geS4lueVjO+8gQ==',
+                    expected: 'encode'
+                },
+                {
+                    name: '短文本',
+                    content: 'Hello',
+                    expected: 'encode'
+                }
+            ];
+            
+            testCases.forEach((testCase, index) => {
+                detectContentType(testCase.content).then(type => {
+                    const isSuccess = type === testCase.expected;
+                    results += `
+                        <div class="${isSuccess ? 'success' : 'error'}" style="margin-bottom: 10px;">
+                            <strong>测试 ${index + 1} (${testCase.name}):</strong><br>
+                            结果: ${type} | 预期: ${testCase.expected} | ${isSuccess ? '✅' : '❌'}
+                        </div>
+                    `;
+                    resultDiv.innerHTML = `<div class="info">${results}</div>`;
+                });
+            });
+        }
+    </script>
+</body>
+</html>

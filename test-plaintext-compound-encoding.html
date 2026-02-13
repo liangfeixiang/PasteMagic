@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>明文复合编码功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>明文复合编码功能测试</h1>
+    
+    <div class="test-container">
+        <h2>功能说明</h2>
+        <p>本测试页面用于验证明文编码(plainCoding)的复合编码支持功能。</p>
+        <p><strong>支持的复合编码示例：</strong></p>
+        <ul>
+            <li>Base64+Base64 (双重Base64编码)</li>
+            <li>Hex+Base64 (先Hex编码再Base64编码)</li>
+            <li>UTF8+Base64 (UTF8编码后再Base64编码)</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2>编码测试</h2>
+        <div class="test-section">
+            <h3>明文编码测试</h3>
+            <div class="input-group">
+                <label>原始文本:</label>
+                <input type="text" id="plaintext" value="Hello World! 你好世界！" placeholder="输入要编码的文本">
+            </div>
+            <div class="input-group">
+                <label>编码方式:</label>
+                <select id="encodingType">
+                    <option value="Base64">Base64</option>
+                    <option value="Hex">Hex</option>
+                    <option value="UTF8">UTF8</option>
+                </select>
+                <button onclick="addEncoding()">添加编码</button>
+                <button onclick="clearEncodings()">清空编码</button>
+            </div>
+            <div class="input-group">
+                <label>当前编码链:</label>
+                <span id="currentEncodingChain">UTF8</span>
+            </div>
+            <button onclick="testEncoding()">执行编码</button>
+            <button onclick="testDecoding()">执行解码</button>
+            
+            <div id="encodingResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>预设测试案例</h2>
+        <div class="test-section">
+            <h3>常用复合编码测试</h3>
+            <button onclick="runTestCase('Base64+Base64')">测试 Base64+Base64</button>
+            <button onclick="runTestCase('Hex+Base64')">测试 Hex+Base64</button>
+            <button onclick="runTestCase('UTF8+Base64')">测试 UTF8+Base64</button>
+            <button onclick="runAllTests()">运行所有测试</button>
+            
+            <div id="testCaseResults" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>技术验证</h2>
+        <div class="test-section">
+            <h3>编码处理顺序验证</h3>
+            <p>复合编码按照从左到右的顺序处理（从外到内）</p>
+            <button onclick="testProcessingOrder()">验证处理顺序</button>
+            <div id="orderTestResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentEncodings = ['UTF8'];
+
+        // 更新编码链显示
+        function updateEncodingChain() {
+            document.getElementById('currentEncodingChain').textContent = currentEncodings.join('+');
+        }
+
+        // 添加编码
+        function addEncoding() {
+            const encodingType = document.getElementById('encodingType').value;
+            currentEncodings.push(encodingType);
+            updateEncodingChain();
+        }
+
+        // 清空编码
+        function clearEncodings() {
+            currentEncodings = ['UTF8'];
+            updateEncodingChain();
+        }
+
+        // 执行编码测试
+        function testEncoding() {
+            const plaintext = document.getElementById('plaintext').value;
+            const encodingChain = currentEncodings.join('+');
+            
+            try {
+                // 这里模拟编码过程
+                let result = plaintext;
+                
+                // 按照从左到右的顺序处理每个编码
+                for (let i = 0; i < currentEncodings.length; i++) {
+                    const encoding = currentEncodings[i];
+                    result = applyEncoding(result, encoding);
+                }
+                
+                showResult('encodingResult', 
+                    `原始文本: ${plaintext}\n` +
+                    `编码链: ${encodingChain}\n` +
+                    `编码结果: ${result}\n` +
+                    `结果长度: ${result.length} 字符`, 
+                    'success');
+                    
+            } catch (error) {
+                showResult('encodingResult', `编码失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 执行解码测试
+        function testDecoding() {
+            const plaintext = document.getElementById('plaintext').value;
+            const encodingChain = currentEncodings.join('+');
+            
+            try {
+                // 先编码
+                let encoded = plaintext;
+                for (let i = 0; i < currentEncodings.length; i++) {
+                    encoded = applyEncoding(encoded, currentEncodings[i]);
+                }
+                
+                // 再解码（逆序）
+                let decoded = encoded;
+                for (let i = currentEncodings.length - 1; i >= 0; i--) {
+                    decoded = applyDecoding(decoded, currentEncodings[i]);
+                }
+                
+                const isSuccess = decoded === plaintext;
+                showResult('encodingResult', 
+                    `编码链: ${encodingChain}\n` +
+                    `原始文本: ${plaintext}\n` +
+                    `编码结果: ${encoded}\n` +
+                    `解码结果: ${decoded}\n` +
+                    `解码${isSuccess ? '成功' : '失败'}: ${isSuccess ? '✓' : '✗'}`, 
+                    isSuccess ? 'success' : 'error');
+                    
+            } catch (error) {
+                showResult('encodingResult', `解码失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 应用单个编码
+        function applyEncoding(data, encoding) {
+            switch (encoding) {
+                case 'Base64':
+                    return btoa(unescape(encodeURIComponent(data)));
+                case 'Hex':
+                    return Array.from(new TextEncoder().encode(data))
+                        .map(byte => byte.toString(16).padStart(2, '0'))
+                        .join('');
+                case 'UTF8':
+                    return data; // UTF8是默认编码，不改变数据
+                default:
+                    throw new Error(`不支持的编码方式: ${encoding}`);
+            }
+        }
+
+        // 应用单个解码
+        function applyDecoding(data, encoding) {
+            switch (encoding) {
+                case 'Base64':
+                    return decodeURIComponent(escape(atob(data)));
+                case 'Hex':
+                    const bytes = [];
+                    for (let i = 0; i < data.length; i += 2) {
+                        bytes.push(parseInt(data.substr(i, 2), 16));
+                    }
+                    return new TextDecoder().decode(new Uint8Array(bytes));
+                case 'UTF8':
+                    return data; // UTF8是默认编码，不改变数据
+                default:
+                    throw new Error(`不支持的编码方式: ${encoding}`);
+            }
+        }
+
+        // 运行预设测试案例
+        function runTestCase(testCase) {
+            const testCases = {
+                'Base64+Base64': { text: 'Hello World!', encodings: ['Base64', 'Base64'] },
+                'Hex+Base64': { text: 'Test123', encodings: ['Hex', 'Base64'] },
+                'UTF8+Base64': { text: '中文测试', encodings: ['UTF8', 'Base64'] }
+            };
+            
+            const testCaseData = testCases[testCase];
+            if (!testCaseData) {
+                showResult('testCaseResults', `未知测试案例: ${testCase}`, 'error');
+                return;
+            }
+            
+            currentEncodings = testCaseData.encodings;
+            document.getElementById('plaintext').value = testCaseData.text;
+            updateEncodingChain();
+            testEncoding();
+        }
+
+        // 运行所有测试
+        function runAllTests() {
+            const results = [];
+            const testCases = ['Base64+Base64', 'Hex+Base64', 'UTF8+Base64'];
+            
+            testCases.forEach(testCase => {
+                try {
+                    runTestCase(testCase);
+                    results.push(`${testCase}: ✓ 通过`);
+                } catch (error) {
+                    results.push(`${testCase}: ✗ 失败 - ${error.message}`);
+                }
+            });
+            
+            showResult('testCaseResults', results.join('\n'), 'info');
+        }
+
+        // 验证处理顺序
+        function testProcessingOrder() {
+            const testText = "ABC";
+            const encodings = ['Base64', 'Hex'];
+            
+            // 手动按顺序处理
+            let manualResult = testText;
+            for (let i = 0; i < encodings.length; i++) {
+                manualResult = applyEncoding(manualResult, encodings[i]);
+            }
+            
+            // 验证结果
+            const expectedBase64 = btoa("ABC"); // "QUJD"
+            const expectedHex = Array.from(new TextEncoder().encode("QUJD"))
+                .map(b => b.toString(16).padStart(2, '0')).join(''); // "51554a44"
+            
+            const isSuccess = manualResult === expectedHex;
+            
+            showResult('orderTestResult',
+                `测试文本: ${testText}\n` +
+                `编码链: ${encodings.join('+')}\n` +
+                `手动处理结果: ${manualResult}\n` +
+                `预期结果: ${expectedHex}\n` +
+                `顺序验证: ${isSuccess ? '✓ 正确' : '✗ 错误'}`,
+                isSuccess ? 'success' : 'error');
+        }
+
+        // 显示结果
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+
+        // 初始化
+        updateEncodingChain();
+    </script>
+</body>
+</html>

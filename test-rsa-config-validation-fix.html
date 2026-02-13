@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA配置验证修复测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-center">🔐 RSA配置验证修复测试</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">问题描述</h2>
+            <div class="bg-red-50 border border-red-200 rounded p-4 mb-4">
+                <p class="text-red-800"><strong>错误信息：</strong> RSA解密需要提供私钥</p>
+                <p class="text-red-700 mt-2"><strong>错误位置：</strong> cipherutils.js:325:13</p>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <h3 class="font-medium text-blue-800 mb-2">根本原因：</h3>
+                <p class="text-blue-700">AutoCipherTool组件中的isValidConfig函数验证逻辑不完整，只检查了config.privateKey对象是否存在，而没有检查config.privateKey.value是否存在且非空。</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 修复前代码 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-red-600">❌ 修复前（错误代码）</h2>
+                <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>// 验证配置是否有效
+const isValidConfig = (config) => {
+  if (!config || !config.name) return false;
+  if (config.algorithm?.startsWith('RSA')) {
+    // ❌ 错误：只检查对象存在，不检查值是否存在
+    return config.privateKey;  // 可能是 {} 空对象
+  } else {
+    return config.key && config.key.value;
+  }
+};</code></pre>
+                
+                <div class="mt-4 p-3 bg-red-50 rounded">
+                    <p class="text-red-700 text-sm"><strong>问题：</strong>即使config.privateKey是空对象{}，也会被认为是有效配置，导致后续解密时出现"需要提供私钥"错误。</p>
+                </div>
+            </div>
+
+            <!-- 修复后代码 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-green-600">✅ 修复后（正确代码）</h2>
+                <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>// 验证配置是否有效
+const isValidConfig = (config) => {
+  if (!config || !config.name) return false;
+  if (config.algorithm?.startsWith('RSA')) {
+    // ✅ 正确：同时检查对象和值的存在
+    return config.privateKey && config.privateKey.value;
+  } else {
+    return config.key && config.key.value;
+  }
+};</code></pre>
+                
+                <div class="mt-4 p-3 bg-green-50 rounded">
+                    <p class="text-green-700 text-sm"><strong>改进：</strong>只有当config.privateKey对象存在且其value属性有实际值时，才认为是有效配置。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">🧪 配置验证测试</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-medium mb-3">测试用例</h3>
+                    <div class="space-y-4">
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">有效RSA配置</h4>
+                            <pre class="bg-gray-100 p-2 rounded text-xs">{
+  name: "rsa-test",
+  algorithm: "RSA",
+  privateKey: {
+    value: "-----BEGIN PRIVATE KEY-----...",
+    encoding: ["UTF8"]
+  }
+}</pre>
+                        </div>
+                        
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">无效RSA配置（空值）</h4>
+                            <pre class="bg-gray-100 p-2 rounded text-xs">{
+  name: "rsa-invalid",
+  algorithm: "RSA",
+  privateKey: {
+    value: "",  // 空值
+    encoding: ["UTF8"]
+  }
+}</pre>
+                        </div>
+                        
+                        <div class="border rounded p-3">
+                            <h4 class="font-medium text-sm mb-2">无效RSA配置（无值属性）</h4>
+                            <pre class="bg-gray-100 p-2 rounded text-xs">{
+  name: "rsa-invalid2",
+  algorithm: "RSA",
+  privateKey: {}  // 空对象，无value属性
+}</pre>
+                        </div>
+                        
+                        <button onclick="runValidationTests()" 
+                                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
+                            🔧 运行验证测试
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-medium mb-3">测试结果</h3>
+                    <div id="validationResults" class="bg-gray-50 p-4 rounded min-h-[300px]">
+                        <p class="text-gray-500">点击"运行验证测试"按钮开始测试...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">📋 修复总结</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h3 class="font-medium text-green-800 mb-2">✅ 问题修复</h3>
+                    <ul class="text-sm text-green-700 space-y-1">
+                        <li>修正RSA配置验证逻辑</li>
+                        <li>加强私钥值存在性检查</li>
+                        <li>避免空配置导致的运行时错误</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-medium text-blue-800 mb-2">🔧 技术要点</h3>
+                    <ul class="text-sm text-blue-700 space-y-1">
+                        <li>配置结构：<code>{privateKey: {value, encoding}}</code></li>
+                        <li>双重验证：<code>config.privateKey && config.privateKey.value</code></li>
+                        <li>防止空对象误判为有效配置</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <h3 class="font-medium text-purple-800 mb-2">🎯 影响范围</h3>
+                    <ul class="text-sm text-purple-700 space-y-1">
+                        <li>AutoCipherTool自动解密功能</li>
+                        <li>RSA配置的有效性验证</li>
+                        <li>解密前的配置筛选机制</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟修复后的isValidConfig函数
+        function isValidConfig(config) {
+            if (!config || !config.name) return false;
+            if (config.algorithm?.startsWith('RSA')) {
+                // 修复：同时检查对象和值的存在
+                return config.privateKey && config.privateKey.value;
+            } else {
+                return config.key && config.key.value;
+            }
+        }
+
+        // 运行验证测试
+        function runValidationTests() {
+            const resultsDiv = document.getElementById('validationResults');
+            
+            // 测试用例
+            const testCases = [
+                {
+                    name: "有效RSA配置",
+                    config: {
+                        name: "rsa-valid",
+                        algorithm: "RSA",
+                        privateKey: {
+                            value: "-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...",
+                            encoding: ["UTF8"]
+                        }
+                    },
+                    expected: true
+                },
+                {
+                    name: "无效RSA配置（空值）",
+                    config: {
+                        name: "rsa-invalid-empty",
+                        algorithm: "RSA",
+                        privateKey: {
+                            value: "",
+                            encoding: ["UTF8"]
+                        }
+                    },
+                    expected: false
+                },
+                {
+                    name: "无效RSA配置（无值属性）",
+                    config: {
+                        name: "rsa-invalid-no-value",
+                        algorithm: "RSA",
+                        privateKey: {}
+                    },
+                    expected: false
+                },
+                {
+                    name: "有效AES配置",
+                    config: {
+                        name: "aes-valid",
+                        algorithm: "AES/CBC/PKCS5Padding",
+                        key: {
+                            value: "1234567890123456",
+                            encoding: ["UTF8"]
+                        }
+                    },
+                    expected: true
+                },
+                {
+                    name: "无效AES配置",
+                    config: {
+                        name: "aes-invalid",
+                        algorithm: "AES/CBC/PKCS5Padding",
+                        key: {
+                            value: "",
+                            encoding: ["UTF8"]
+                        }
+                    },
+                    expected: false
+                }
+            ];
+
+            let resultsHtml = '<div class="space-y-3">';
+            
+            testCases.forEach((testCase, index) => {
+                const isValid = isValidConfig(testCase.config);
+                const isCorrect = isValid === testCase.expected;
+                
+                resultsHtml += `
+                    <div class="p-3 rounded ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}">
+                                ${testCase.name}
+                            </span>
+                            <span class="text-sm ${isCorrect ? 'text-green-600' : 'text-red-600'}">
+                                ${isValid ? '✅ 有效' : '❌ 无效'} ${isCorrect ? '(✓ 正确)' : '(✗ 错误)'}
+                            </span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-600">
+                            <div><strong>期望结果：</strong> ${testCase.expected ? '有效' : '无效'}</div>
+                            <div><strong>实际结果：</strong> ${isValid ? '有效' : '无效'}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsHtml += '</div>';
+            resultsDiv.innerHTML = resultsHtml;
+        }
+    </script>
+</body>
+</html>

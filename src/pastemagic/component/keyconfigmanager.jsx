@@ -5,6 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import CipherTool from './ciphertool';
+import CipherTestComponent from './ciphertest';
+// 本文件也需要知道哪些 mode 需要填充
+const NEED_PADDING_MODES = new Set(['CBC', 'ECB']);
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -29,6 +33,7 @@ export default function KeyConfigManager({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5); // 每页显示5个配置
   const [isLoading, setIsLoading] = useState(false);
+  const [showTestPanel, setShowTestPanel] = useState(false);
 
   // 计算分页数据
   const totalPages = Math.ceil(configs.length / itemsPerPage);
@@ -138,14 +143,20 @@ export default function KeyConfigManager({
       padding: 'PKCS5Padding', // 填充方式
       key: {
         value: '',
-        encoding: ['HEX']
+        encoding: ['UTF8']
       },
       iv: {
         value: '',
         encoding: ['UTF8']
       },
-      publicKey: '',
-      privateKey: '',
+      publicKey: {
+        value: '',
+        encoding: ['UTF8']
+      },
+      privateKey: {
+        value: '',
+        encoding: ['UTF8']
+      },
       plainEncoding: ['UTF8'], // 明文编码默认UTF8
       cipherEncoding: ['BASE64'], // 密文编码默认BASE64
       createdAt: Date.now()
@@ -217,7 +228,7 @@ export default function KeyConfigManager({
   };
 
   // 生成RSA密钥对
-  const generateRSAKeys = async (configToUpdate) => {
+  const generateRSAKeys = async (configToUpdate, onUpdateCallback) => {
     try {
       toast.info('正在生成RSA密钥对...');
       
@@ -240,31 +251,33 @@ export default function KeyConfigManager({
 
       const updatedConfig = {
         ...configToUpdate,
-        publicKey: publicKeyPEM,
-        privateKey: privateKeyPEM
+        publicKey: {
+          value: publicKeyPEM,
+          encoding: ['UTF8']
+        },
+        privateKey: {
+          value: privateKeyPEM,
+          encoding: ['UTF8']
+        }
       };
 
-      saveConfig(updatedConfig);
-      toast.success('RSA密钥对生成成功！');
+      // 只更新输入框值，不自动保存
+      if (onUpdateCallback && typeof onUpdateCallback === 'function') {
+        onUpdateCallback(updatedConfig);
+      }
+      
+      toast.success('RSA密钥对生成成功！请手动点击保存按钮保存配置');
     } catch (error) {
       console.error('生成RSA密钥失败:', error);
       toast.error(`生成失败: ${error.message}`);
     }
   };
 
-  // ArrayBuffer转PEM格式
+  // ArrayBuffer转PEM格式（去除头部尾部标记，只保留Base64内容）
   const arrayBufferToPEM = (buffer, type) => {
     const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    const pem = `-----BEGIN ${type}-----\n`;
-    const end = `\n-----END ${type}-----`;
-    
-    let result = pem;
-    for (let i = 0; i < base64.length; i += 64) {
-      result += base64.substr(i, 64) + '\n';
-    }
-    result += end;
-    
-    return result;
+    // 只返回Base64内容，不包含PEM头部和尾部标记
+    return base64;
   };
 
   // 获取当前选中的配置
@@ -327,6 +340,14 @@ export default function KeyConfigManager({
           <CardTitle className="flex items-center justify-between">
             <span>🔐 秘钥配置管理</span>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowTestPanel(!showTestPanel)}
+                className={showTestPanel ? 'bg-primary text-primary-foreground' : ''}
+              >
+                🧪 测试面板
+              </Button>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button 
@@ -354,6 +375,7 @@ export default function KeyConfigManager({
                       onDelete={deleteConfig}
                       onGenerateKeys={generateRSAKeys}
                       showGenerateButton={showGenerateButton}
+                      onCancel={() => setIsDialogOpen(false)}
                     />
                   ) : (
                     <div className="space-y-4 flex-1 overflow-y-auto pr-2">
@@ -382,11 +404,22 @@ export default function KeyConfigManager({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col overflow-hidden">
+          {/* 测试面板 */}
+          {showTestPanel && (
+            <div className="mb-6 p-4 bg-muted rounded-lg border">
+              <CipherTestComponent 
+                configs={configs}
+                selectedConfig={getCurrentConfig()}
+                showConfigSelector={false}
+                className="mb-4"
+              />
+            </div>
+          )}
           <div className="space-y-4 flex-1 flex flex-col">
             <div className="flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-semibold">配置列表</h3>
               <div className="text-sm text-muted-foreground">
-                共 {configs.length} 个配置 {isLoading && '(加载中...)'}
+                共 {configs.length} 个配置 {totalPages > 1 && `(第 ${currentPage}/${totalPages} 页)`} {isLoading && '(加载中...)'}
               </div>
             </div>
             
@@ -420,9 +453,16 @@ export default function KeyConfigManager({
                         <td className="py-3 px-4">{config.plainEncoding?.[0] || 'UTF8'}</td>
                         <td className="py-3 px-4">{config.cipherEncoding?.[0] || 'BASE64'}</td>
                         <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {config.algorithmType === 'RSA' || config.algorithm?.startsWith('RSA')
-                            ? 'N/A'
-                            : `${config.mode || config.algorithm?.split('/')[1] || 'CBC'} / ${config.padding || config.algorithm?.split('/')[2] || 'PKCS5Padding'}`
+                          {config.algorithmType === 'RSA' || config.algorithm?.startsWith('RSA') ? (
+                            'N/A'
+                          ) : (() => {
+                            const mode = config.mode || config.algorithm?.split('/')[1] || '';
+                            if (NEED_PADDING_MODES.has(mode)) {
+                              const padding = config.padding || config.algorithm?.split('/')[2] || 'PKCS5Padding';
+                              return `${mode || 'CBC'} / ${padding}`;
+                            }
+                            return mode || (config.algorithm?.split('/')[1] || 'CBC');
+                          })()
                           }
                         </td>
                         <td className="py-3 px-4 text-center">
@@ -529,11 +569,24 @@ export default function KeyConfigManager({
                 </div>
                 {getCurrentConfig()?.algorithmType !== 'RSA' && getCurrentConfig()?.algorithm !== 'RSA' && (
                   <div>
-                    模式: <span className="font-medium">{getCurrentConfig()?.mode || 'CBC'}</span>
-                    <span className="mx-2">•</span>
-                    填充: <span className="font-medium">{getCurrentConfig()?.padding || 'PKCS7'}</span>
+                    {(() => {
+                      const cur = getCurrentConfig();
+                      const mode = cur?.mode || cur?.algorithm?.split('/')[1] || '';
+                      const padding = cur?.padding || cur?.algorithm?.split('/')[2] || '';
+                      return (
+                        <>
+                          模式: <span className="font-medium">{mode || 'CBC'}</span>
+                          {NEED_PADDING_MODES.has(mode) && (
+                            <>
+                              <span className="mx-2">•</span>
+                              填充: <span className="font-medium">{padding || 'PKCS5Padding'}</span>
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
-                )}
+                 )}
               </div>
             </div>
           )}
@@ -544,11 +597,11 @@ export default function KeyConfigManager({
 }
 
 // 配置编辑器组件
-function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateButton }) {
+function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateButton, onCancel }) {
   // 确保配置对象具有必要的默认结构
   const normalizedConfig = {
     ...config,
-    key: config.key || { value: '', encoding: ['HEX'] },
+    key: config.key || { value: '', encoding: ['UTF8'] },
     iv: config.iv || { value: '', encoding: ['UTF8'] },
     plainEncoding: config.plainEncoding || ['UTF8'],
     cipherEncoding: config.cipherEncoding || ['BASE64']
@@ -564,7 +617,7 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
     
     // 根据算法类型验证必要字段
     if (editedConfig.algorithm?.startsWith('RSA')) {
-      if (!editedConfig.publicKey.trim() || !editedConfig.privateKey.trim()) {
+      if (!editedConfig.publicKey?.value?.trim() || !editedConfig.privateKey?.value?.trim()) {
         toast.error('RSA算法需要配置公钥和私钥');
         return;
       }
@@ -583,7 +636,10 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
   };
 
   const handleGenerateKeys = () => {
-    onGenerateKeys(editedConfig);
+    // 传入回调函数来更新本地状态
+    onGenerateKeys(editedConfig, (updatedConfig) => {
+      setEditedConfig(updatedConfig);
+    });
   };
 
   // 更新密钥值
@@ -632,18 +688,73 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
 
   // 更新明文编码
   const updatePlainEncoding = (encoding) => {
-    setEditedConfig(prev => ({
-      ...prev,
-      plainEncoding: [encoding]
-    }));
+    setEditedConfig(prev => {
+      // 处理复合编码：支持+号分隔的多个编码方式
+      const encodings = encoding.split('+').map(enc => enc.trim()).filter(enc => enc);
+      return {
+        ...prev,
+        plainEncoding: encodings
+      };
+    });
+  };
+
+  // 添加明文编码
+  const addPlainEncoding = (encoding) => {
+    setEditedConfig(prev => {
+      const currentEncodings = prev.plainEncoding || [];
+      return {
+        ...prev,
+        plainEncoding: [...currentEncodings, encoding]
+      };
+    });
+  };
+
+  // 移除明文编码
+  const removePlainEncoding = (encoding) => {
+    setEditedConfig(prev => {
+      const currentEncodings = prev.plainEncoding || [];
+      return {
+        ...prev,
+        plainEncoding: currentEncodings.filter(enc => enc !== encoding)
+      };
+    });
   };
 
   // 更新密文编码
   const updateCipherEncoding = (encoding) => {
-    setEditedConfig(prev => ({
-      ...prev,
-      cipherEncoding: [encoding]
-    }));
+    setEditedConfig(prev => {
+      // 处理复合编码：支持+号分隔的多个编码方式
+      const encodings = encoding.split('+').map(enc => enc.trim()).filter(enc => enc);
+      return {
+        ...prev,
+        cipherEncoding: encodings
+      };
+    });
+  };
+
+  // 添加密文编码
+  const addCipherEncoding = (encoding) => {
+    setEditedConfig(prev => {
+      const currentEncodings = prev.cipherEncoding || [];
+      if (!currentEncodings.includes(encoding)) {
+        return {
+          ...prev,
+          cipherEncoding: [...currentEncodings, encoding]
+        };
+      }
+      return prev;
+    });
+  };
+
+  // 移除密文编码
+  const removeCipherEncoding = (encoding) => {
+    setEditedConfig(prev => {
+      const currentEncodings = prev.cipherEncoding || [];
+      return {
+        ...prev,
+        cipherEncoding: currentEncodings.filter(enc => enc !== encoding)
+      };
+    });
   };
 
   // 编码格式选项
@@ -667,21 +778,6 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
     { value: 'BASE64_URLSAFE', label: 'Base64 URL Safe' }
   ];
 
-  // 算法模式选项
-  const modeOptions = [
-    { value: 'CBC', label: 'CBC' },
-    { value: 'ECB', label: 'ECB' },
-    { value: 'CFB', label: 'CFB' },
-    { value: 'OFB', label: 'OFB' }
-  ];
-
-  // 填充方式选项
-  const paddingOptions = [
-    { value: 'PKCS7', label: 'PKCS7' },
-    { value: 'PKCS5', label: 'PKCS5' },
-    { value: 'NoPadding', label: 'No Padding' },
-    { value: 'ZeroPadding', label: 'Zero Padding' }
-  ];
 
   return (
     <div className="space-y-6 flex-1 overflow-y-auto pr-2">
@@ -691,7 +787,7 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
           <h3 className="text-lg font-semibold">基础配置</h3>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
           <div>
             <Label htmlFor="configName">配置名称 *</Label>
             <Input
@@ -703,22 +799,47 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
           </div>
           
           <div>
-            <Label htmlFor="algorithm">算法类型</Label>
-            <Select 
-              value={editedConfig.algorithm} 
-              onValueChange={(value) => setEditedConfig(prev => ({ ...prev, algorithm: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AES/CBC/PKCS5Padding">AES/CBC/PKCS5Padding</SelectItem>
-                <SelectItem value="AES/ECB/PKCS5Padding">AES/ECB/PKCS5Padding</SelectItem>
-                <SelectItem value="SM4/CBC">SM4/CBC</SelectItem>
-                <SelectItem value="SM4/ECB">SM4/ECB</SelectItem>
-                <SelectItem value="RSA">RSA</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* 算法配置放在配置名称下面（全宽展示） */}
+            <CipherTool
+              initialValue={{
+                // 直接传入合并字符串或分字段（CipherTool 会解析）
+                algorithm: editedConfig.algorithm || '' ,
+                model: editedConfig.mode || editedConfig.model || '',
+                padding: editedConfig.padding || ''
+              }}
+              onSave={(merged) => {
+                setEditedConfig(prev => {
+                  const updated = {
+                    ...prev,
+                    algorithm: merged.algorithm === 'RSA' 
+                      ? 'RSA'  // RSA算法不需要模式和填充
+                      : merged.combined || `${merged.algorithm}${merged.model ? '/' + merged.model : ''}${merged.padding ? '/' + merged.padding : ''}`,
+                    algorithmType: merged.algorithm || prev.algorithmType,
+                    mode: merged.algorithm === 'RSA' ? '' : (merged.model || prev.mode),
+                    model: merged.algorithm === 'RSA' ? '' : (merged.model || prev.model),
+                    // Always use merged.padding (may be empty string) to reflect switching to non-padding modes
+                    padding: merged.algorithm === 'RSA' ? '' : (merged.hasOwnProperty('padding') ? merged.padding : prev.padding)
+                  };
+                  if (typeof onSave === 'function') onSave(updated);
+                  return updated;
+                });
+                toast.success('算法设置已应用并保存');
+              }}
+              onChange={(merged) => {
+                setEditedConfig(prev => ({
+                  ...prev,
+                  algorithm: merged.algorithm === 'RSA' 
+                    ? 'RSA'  // RSA算法不需要模式和填充
+                    : merged.combined || `${merged.algorithm}${merged.model ? '/' + merged.model : ''}${merged.padding ? '/' + merged.padding : ''}`,
+                  algorithmType: merged.algorithm || prev.algorithmType,
+                  mode: merged.algorithm === 'RSA' ? '' : (merged.model || prev.mode),
+                  model: merged.algorithm === 'RSA' ? '' : (merged.model || prev.model),
+                  // write merged.padding even if empty to avoid keeping old padding when switching to non-padding modes
+                  padding: merged.algorithm === 'RSA' ? '' : (merged.hasOwnProperty('padding') ? merged.padding : prev.padding)
+                }));
+              }}
+              onCancel={() => { /* 不改变 editedConfig */ }}
+            />
           </div>
         </div>
 
@@ -736,25 +857,83 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
         {editedConfig.algorithmType === 'RSA' ? (
           <>
             <div>
-              <Label>RSA 公钥 (PEM格式) *</Label>
-              <Textarea
-                value={editedConfig.publicKey}
-                onChange={(e) => setEditedConfig(prev => ({ ...prev, publicKey: e.target.value }))}
-                placeholder="请输入RSA公钥..."
-                className="font-mono text-sm"
-                rows={6}
-              />
+              <Label>RSA 公钥 *</Label>
+              <div className="flex gap-2">
+                <Textarea
+                  value={editedConfig.publicKey?.value || ''}
+                  onChange={(e) => setEditedConfig(prev => ({
+                    ...prev,
+                    publicKey: {
+                      ...prev.publicKey,
+                      value: e.target.value
+                    }
+                  }))}
+                  placeholder="请输入RSA公钥..."
+                  className="font-mono text-sm flex-1"
+                  rows={6}
+                />
+                <Select 
+                  value={editedConfig.publicKey?.encoding?.[0] || 'UTF8'} 
+                  onValueChange={(encoding) => setEditedConfig(prev => ({
+                    ...prev,
+                    publicKey: {
+                      ...prev.publicKey,
+                      encoding: [encoding]
+                    }
+                  }))}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {encodingOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
-              <Label>RSA 私钥 (PEM格式) *</Label>
-              <Textarea
-                value={editedConfig.privateKey}
-                onChange={(e) => setEditedConfig(prev => ({ ...prev, privateKey: e.target.value }))}
-                placeholder="请输入RSA私钥..."
-                className="font-mono text-sm"
-                rows={6}
-              />
+              <Label>RSA 私钥 *</Label>
+              <div className="flex gap-2">
+                <Textarea
+                  value={editedConfig.privateKey?.value || ''}
+                  onChange={(e) => setEditedConfig(prev => ({
+                    ...prev,
+                    privateKey: {
+                      ...prev.privateKey,
+                      value: e.target.value
+                    }
+                  }))}
+                  placeholder="请输入RSA私钥..."
+                  className="font-mono text-sm flex-1"
+                  rows={6}
+                />
+                <Select 
+                  value={editedConfig.privateKey?.encoding?.[0] || 'UTF8'} 
+                  onValueChange={(encoding) => setEditedConfig(prev => ({
+                    ...prev,
+                    privateKey: {
+                      ...prev.privateKey,
+                      encoding: [encoding]
+                    }
+                  }))}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {encodingOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             {showGenerateButton && (
@@ -833,40 +1012,98 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>明文编码</Label>
-            <Select 
-              value={editedConfig.plainEncoding?.[0] || 'UTF8'} 
-              onValueChange={updatePlainEncoding}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {plaintextEncodingOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              {/* 复合编码显示 */}
+              <div className="flex flex-wrap gap-2 min-h-[36px] p-2 border rounded bg-gray-50">
+                {editedConfig.plainEncoding?.map((encoding, index) => (
+                  <div key={index} className="flex items-center bg-green-100 px-2 py-1 rounded text-sm">
+                    <span>{encoding}</span>
+                    <button 
+                      type="button"
+                      onClick={() => removePlainEncoding(encoding)}
+                      className="ml-1 text-green-600 hover:text-green-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )) || (
+                  <span className="text-gray-400 text-sm">未选择编码方式</span>
+                )}
+              </div>
+              
+              {/* 编码选择器 */}
+              <Select onValueChange={addPlainEncoding}>
+                <SelectTrigger>
+                  <SelectValue placeholder="添加编码方式" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plaintextEncodingOptions.map(option => {
+                    return (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              
+              {/* 说明文字 */}
+              <div className="text-xs text-gray-500">
+                支持多个编码方式组合，如：BASE64+BASE64
+              </div>
+            </div>
           </div>
           
           <div>
             <Label>密文编码</Label>
-            <Select 
-              value={editedConfig.cipherEncoding?.[0] || 'BASE64'} 
-              onValueChange={updateCipherEncoding}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ciphertextEncodingOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              {/* 复合编码显示 */}
+              <div className="flex flex-wrap gap-2 min-h-[36px] p-2 border rounded bg-gray-50">
+                {editedConfig.cipherEncoding?.map((encoding, index) => (
+                  <div key={index} className="flex items-center bg-blue-100 px-2 py-1 rounded text-sm">
+                    <span>{encoding}</span>
+                    <button 
+                      type="button"
+                      onClick={() => removeCipherEncoding(encoding)}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )) || (
+                  <span className="text-gray-400 text-sm">未选择编码方式</span>
+                )}
+              </div>
+              
+              {/* 编码选择器 */}
+              <Select onValueChange={addCipherEncoding}>
+                <SelectTrigger>
+                  <SelectValue placeholder="添加编码方式" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ciphertextEncodingOptions.map(option => {
+                    const isSelected = editedConfig.cipherEncoding?.includes(option.value);
+                    return (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                        disabled={isSelected}
+                      >
+                        {option.label}{isSelected ? ' (已添加)' : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              
+              {/* 说明文字 */}
+              <div className="text-xs text-gray-500">
+                支持多个编码方式组合，如：BASE64+HEX+URLSAFE
+              </div>
+            </div>
           </div>
         </div>
         
@@ -890,7 +1127,7 @@ function ConfigEditor({ config, onSave, onDelete, onGenerateKeys, showGenerateBu
         </div>
         
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => onSave(config)}>
+          <Button variant="secondary" onClick={() => { if (typeof onCancel === 'function') onCancel(); }}>
             取消
           </Button>
           <Button onClick={handleSave}>

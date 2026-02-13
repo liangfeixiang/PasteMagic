@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA密钥生成不自动保存测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-section {
+            @apply bg-white rounded-lg shadow-md p-6 mb-6;
+        }
+        .code-block {
+            @apply bg-gray-100 p-4 rounded font-mono text-sm overflow-x-auto;
+        }
+        .success { @apply bg-green-50 border-green-200 text-green-800; }
+        .warning { @apply bg-yellow-50 border-yellow-200 text-yellow-800; }
+        .error { @apply bg-red-50 border-red-200 text-red-800; }
+        .info { @apply bg-blue-50 border-blue-200 text-blue-800; }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8">🔐 RSA密钥生成不自动保存功能测试</h1>
+        
+        <div class="test-section">
+            <h2 class="text-xl font-semibold mb-4">📋 测试目标</h2>
+            <div class="space-y-2">
+                <p><strong>原始需求：</strong>generateRSAKeys 只更新输入框的值，不saveConfig</p>
+                <p><strong>修改内容：</strong></p>
+                <ul class="list-disc list-inside space-y-1 ml-4">
+                    <li>移除 generateRSAKeys 函数中的自动 saveConfig 调用</li>
+                    <li>添加 onUpdateCallback 参数用于更新输入框值</li>
+                    <li>修改 ConfigEditor 中的 handleGenerateKeys 调用方式</li>
+                    <li>添加用户友好的提示信息</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 修改前 -->
+            <div class="test-section">
+                <h3 class="text-lg font-semibold mb-3 text-red-600">❌ 修改前（自动保存）</h3>
+                <div class="code-block">
+const generateRSAKeys = async (configToUpdate) => {
+  // ... 密钥生成逻辑 ...
+  
+  const updatedConfig = {
+    ...configToUpdate,
+    publicKey: publicKeyPEM,
+    privateKey: privateKeyPEM
+  };
+
+  saveConfig(updatedConfig); // ❌ 自动保存
+  toast.success('RSA密钥对生成成功！');
+};
+                </div>
+                <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+                    <p class="text-red-800"><strong>问题：</strong>生成密钥后立即保存，用户无法预览或修改</p>
+                </div>
+            </div>
+
+            <!-- 修改后 -->
+            <div class="test-section">
+                <h3 class="text-lg font-semibold mb-3 text-green-600">✅ 修改后（仅更新输入框）</h3>
+                <div class="code-block">
+const generateRSAKeys = async (configToUpdate, onUpdateCallback) => {
+  // ... 密钥生成逻辑 ...
+  
+  const updatedConfig = {
+    ...configToUpdate,
+    publicKey: publicKeyPEM,
+    privateKey: privateKeyPEM
+  };
+
+  // ✅ 只更新输入框值，不自动保存
+  if (onUpdateCallback && typeof onUpdateCallback === 'function') {
+    onUpdateCallback(updatedConfig);
+  }
+  
+  toast.success('RSA密钥对生成成功！请手动点击保存按钮保存配置');
+};
+                </div>
+                <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                    <p class="text-green-800"><strong>优势：</strong>用户可以预览生成的密钥后再决定是否保存</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="text-xl font-semibold mb-4">🔧 ConfigEditor 调用修改</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="font-medium mb-2">修改前：</h3>
+                    <div class="code-block">
+const handleGenerateKeys = () => {
+  onGenerateKeys(editedConfig); // 直接调用
+};
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-medium mb-2">修改后：</h3>
+                    <div class="code-block">
+const handleGenerateKeys = () => {
+  onGenerateKeys(editedConfig, (updatedConfig) => {
+    setEditedConfig(updatedConfig); // 回调更新本地状态
+  });
+};
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="text-xl font-semibold mb-4">🎯 用户体验改进</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-semibold text-blue-800 mb-2">📋 预览功能</h3>
+                    <p class="text-sm">生成密钥后可以在输入框中预览公钥和私钥内容</p>
+                </div>
+                <div class="p-4 bg-yellow-50 rounded-lg">
+                    <h3 class="font-semibold text-yellow-800 mb-2">⚠️ 手动确认</h3>
+                    <p class="text-sm">需要用户主动点击保存按钮才会持久化配置</p>
+                </div>
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h3 class="font-semibold text-green-800 mb-2">🔄 灵活修改</h3>
+                    <p class="text-sm">可以在保存前修改生成的密钥或其它配置项</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="text-xl font-semibold mb-4">🧪 功能验证测试</h2>
+            
+            <div class="space-y-4">
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium mb-2">测试步骤：</h3>
+                    <ol class="list-decimal list-inside space-y-1">
+                        <li>打开秘钥配置管理界面</li>
+                        <li>选择或创建一个RSA配置</li>
+                        <li>点击"生成RSA密钥对"按钮</li>
+                        <li>观察公钥和私钥输入框是否被填充</li>
+                        <li>检查是否显示"请手动点击保存按钮"的提示</li>
+                        <li>修改生成的密钥内容（可选）</li>
+                        <li>点击保存按钮确认保存</li>
+                    </ol>
+                </div>
+                
+                <div class="p-4 border rounded-lg">
+                    <h3 class="font-medium mb-2">预期结果：</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>✅ 密钥生成成功，输入框被正确填充</li>
+                        <li>✅ 不会自动保存到存储中</li>
+                        <li>✅ 显示明确的操作提示</li>
+                        <li>✅ 用户可以预览和修改生成的密钥</li>
+                        <li>✅ 只有点击保存按钮后才持久化配置</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="text-xl font-semibold mb-4">📝 代码变更总结</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-medium text-lg mb-2">主要修改点：</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-3 bg-gray-50 rounded">
+                            <strong>generateRSAKeys 函数：</strong>
+                            <ul class="list-disc list-inside text-sm mt-1 space-y-1">
+                                <li>添加 onUpdateCallback 参数</li>
+                                <li>移除 saveConfig(updatedConfig) 调用</li>
+                                <li>修改成功提示信息</li>
+                            </ul>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded">
+                            <strong>ConfigEditor 组件：</strong>
+                            <ul class="list-disc list-inside text-sm mt-1 space-y-1">
+                                <li>修改 handleGenerateKeys 实现</li>
+                                <li>传入回调函数更新本地状态</li>
+                                <li>保持原有UI交互逻辑</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-medium mb-2">💡 设计理念：</h3>
+                    <p>遵循"用户控制"原则，让用户能够预览和确认自动生成的内容，避免意外的数据变更。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后显示测试指导
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== RSA密钥生成不自动保存测试页面 ===');
+            console.log('📋 测试目标：验证generateRSAKeys函数只更新输入框值而不自动保存');
+            console.log('🔧 主要修改：');
+            console.log('   1. generateRSAKeys添加onUpdateCallback参数');
+            console.log('   2. 移除自动saveConfig调用');
+            console.log('   3. ConfigEditor添加回调更新逻辑');
+            console.log('✅ 预期效果：用户可以预览生成的密钥后再决定是否保存');
+        });
+    </script>
+</body>
+</html>

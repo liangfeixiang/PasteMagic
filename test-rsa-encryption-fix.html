@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA加密修复测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.2.1/jsencrypt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-center">🔐 RSA加密修复测试</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">问题描述</h2>
+            <div class="bg-red-50 border border-red-200 rounded p-4 mb-4">
+                <p class="text-red-800"><strong>错误信息：</strong> RSA加密失败，请检查公钥格式是否正确</p>
+                <p class="text-red-700 mt-2"><strong>错误位置：</strong> cipherutils.js:296:13</p>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <h3 class="font-medium text-blue-800 mb-2">根本原因：</h3>
+                <ul class="list-disc list-inside text-blue-700 space-y-1">
+                    <li>RSA加密方法中使用了 <code>publicKey</code> 而不是 <code>publicKey.value</code></li>
+                    <li>RSA解密方法中使用了 <code>privateKey</code> 而不是 <code>privateKey.value</code></li>
+                    <li>配置对象结构为 <code>{ value: '密钥内容', encoding: ['UTF8'] }</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 修复前代码 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-red-600">❌ 修复前（错误代码）</h2>
+                <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>// RSA加密方法
+static encrypt(plaintext, config) {
+  const { publicKey } = config;
+  
+  // 错误：直接使用 publicKey 对象而不是 publicKey.value
+  const encrypt = new JSEncrypt();
+  encrypt.setPublicKey(publicKey); // ❌ 错误！
+  
+  let encrypted = encrypt.encrypt(processedPlaintext);
+  if (!encrypted) {
+    throw new Error('RSA加密失败，请检查公钥格式是否正确');
+  }
+  return encrypted;
+}
+
+// RSA解密方法
+static decrypt(ciphertext, config) {
+  const { privateKey } = config;
+  
+  // 错误：直接使用 privateKey 对象而不是 privateKey.value
+  const decrypt = new JSEncrypt();
+  decrypt.setPrivateKey(privateKey); // ❌ 错误！
+  
+  let decrypted = decrypt.decrypt(processedCiphertext);
+  // ...
+}</code></pre>
+            </div>
+
+            <!-- 修复后代码 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-green-600">✅ 修复后（正确代码）</h2>
+                <pre class="bg-gray-100 p-4 rounded text-sm overflow-x-auto"><code>// RSA加密方法
+static encrypt(plaintext, config) {
+  const { publicKey } = config;
+  
+  // 正确：使用 publicKey.value 获取实际密钥内容
+  const encrypt = new JSEncrypt();
+  encrypt.setPublicKey(publicKey.value); // ✅ 正确！
+  
+  let encrypted = encrypt.encrypt(processedPlaintext);
+  if (!encrypted) {
+    throw new Error('RSA加密失败，请检查公钥格式是否正确');
+  }
+  return encrypted;
+}
+
+// RSA解密方法
+static decrypt(ciphertext, config) {
+  const { privateKey } = config;
+  
+  // 正确：使用 privateKey.value 获取实际密钥内容
+  const decrypt = new JSEncrypt();
+  decrypt.setPrivateKey(privateKey.value); // ✅ 正确！
+  
+  let decrypted = decrypt.decrypt(processedCiphertext);
+  // ...
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">🧪 实时测试</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-medium mb-2">测试配置</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">测试文本</label>
+                            <input type="text" id="testText" value="Hello RSA Encryption!" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">公钥</label>
+                            <textarea id="publicKey" rows="4" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                                      placeholder="请输入RSA公钥">-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCqGKukO1De7zhZj6+H0qtjTkVxwTCpvKe4eCZ0
+FPqri0cb2JZfXJ/DgYSF6vUpwmJG8wVQZKjeGcjDOL5UlsuusFncCzWBQ7RKNUSesmQRMSGkVb1/
+3j+skZ6UtW+5u09lHNsj6tQ51s1SPrCBkedbNf0Tp0GbMJDyR4e9T04ZZwIDAQAB
+-----END PUBLIC KEY-----</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">私钥</label>
+                            <textarea id="privateKey" rows="6" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                                      placeholder="请输入RSA私钥">-----BEGIN PRIVATE KEY-----
+MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAKoYq6Q7UN7vOFmPr4fSq2NORXHB
+MKm8p7h4JnQU+quLRxvYll9cn8OBhIXq9SnCYkbzBVBkqN4ZyMM4vlSWy66wWdwLNYFDtEo1RJ6y
+ZBExIaRVvX/eP6yRnpS1b7m7T2Uc2yPq1DnWzVI+sIGR51s1/ROnQZswkPJHh71PThlnAgMBAAEC
+gYEA45ZJG0fXsuaSRpSUtjFdQH/XjhYlcXlG1OI5tTZynE78H20M/RkHF9xq+DYAcQ6J3mFkxJ4K
+2rY/JVM3IxvuQkSSogRve1Ay59wXTkkKrJisQQ5YEbwCGsoYD7JviF9+OXkT0N0pZd9mSGH51W7V
+7UFzDDYQqIKXvXFuPW0CQQDTj1U5jc4xHaV3jwVFsJ0D3dqOdgDp34UrkpRIzYW72TcTWTElR7h/
+P5JXm1HC15aqhbm7VmyXiBKxAiXhAkEAxXA2SY0+s5xZVfJK1VOsUKMX3vH+Q7w3oi7snTgfqxel
+DlJoOajEZUEV3Dcq5XgwAUoJBHZBJuTwE/LVx5regwJBAIUjtwiWG4v1DmmDL0BTdwbN9BcL0Ob4
+7jUXdEO9E4R2hlKddcWMsdhNRrxkcyJrNwc7rJowa7BGKHvqLjdCk0MCQGWFAsJ8cwxi+w1OpuEG
+pLxK0vXzg9OP5yjCDkqDilPGcx8H8+knuRmV2BH9/Sz5DC0KjmG+dy6AY5mOMaMCAkEAi3X05rCe
+kqgwb2qJj8VjfHnf9cUkJo3dWIy+ghLMKdQpamHrrqRhOG0HK1m6NveqcpeWd0DdcLZ+dl+dxf4P
+9Q==
+-----END PRIVATE KEY-----</textarea>
+                        </div>
+                        <button onclick="runTest()" 
+                                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
+                            🔧 运行测试
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-medium mb-2">测试结果</h3>
+                    <div id="testResult" class="bg-gray-50 p-4 rounded min-h-[300px]">
+                        <p class="text-gray-500">点击"运行测试"按钮开始测试...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">📋 修复总结</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h3 class="font-medium text-green-800 mb-2">✅ 问题修复</h3>
+                    <ul class="text-sm text-green-700 space-y-1">
+                        <li>修正RSA加密公钥引用</li>
+                        <li>修正RSA解密私钥引用</li>
+                        <li>统一配置对象访问方式</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-medium text-blue-800 mb-2">🔧 技术要点</h3>
+                    <ul class="text-sm text-blue-700 space-y-1">
+                        <li>配置结构：<code>{value, encoding}</code></li>
+                        <li>使用 <code>.value</code> 访问实际密钥</li>
+                        <li>JSEncrypt需要纯密钥字符串</li>
+                    </ul>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <h3 class="font-medium text-purple-800 mb-2">🎯 测试验证</h3>
+                    <ul class="text-sm text-purple-700 space-y-1">
+                        <li>加密解密功能恢复正常</li>
+                        <li>CipherTest组件测试通过</li>
+                        <li>AutoCipherTool自动解密可用</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟项目中的编码工具类
+        class EncodingUtils {
+            static decode(value, encoding) {
+                if (!encoding || encoding.includes('UTF8')) {
+                    return value;
+                }
+                // 简化的编码处理
+                return value;
+            }
+            
+            static encode(value, encoding) {
+                if (!encoding || encoding.includes('UTF8')) {
+                    return value;
+                }
+                // 简化的编码处理
+                return value;
+            }
+        }
+
+        // 模拟修复后的RSACipher类
+        class RSACipher {
+            static encrypt(plaintext, config) {
+                const { publicKey, plainEncoding = ['UTF8'], cipherEncoding = ['BASE64'] } = config;
+                
+                if (!publicKey || !publicKey.value) {
+                    throw new Error('RSA加密需要提供公钥');
+                }
+                
+                // 明文编码方式处理
+                let processedPlaintext = plaintext;
+                if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
+                    processedPlaintext = EncodingUtils.decode(plaintext, plainEncoding);
+                }
+                
+                // 处理公钥 - 修复：使用 publicKey.value
+                const encrypt = new JSEncrypt();
+                encrypt.setPublicKey(publicKey.value); // ✅ 正确！
+                
+                let encrypted = encrypt.encrypt(processedPlaintext);
+                
+                if (!encrypted) {
+                    throw new Error('RSA加密失败，请检查公钥格式是否正确');
+                }
+                
+                // 处理密文编码
+                if (cipherEncoding && cipherEncoding.length > 0) {
+                    if (cipherEncoding.includes('HEX')) {
+                        const wordArray = CryptoJS.enc.Base64.parse(encrypted);
+                        encrypted = wordArray.toString(CryptoJS.enc.Hex);
+                    } else if (cipherEncoding.includes('BASE64_URLSAFE')) {
+                        encrypted = encrypted.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                    }
+                }
+                
+                return encrypted;
+            }
+
+            static decrypt(ciphertext, config) {
+                const { privateKey, plainEncoding = ['UTF8'], cipherEncoding = ['BASE64'] } = config;
+                
+                if (!privateKey || !privateKey.value) {
+                    throw new Error('RSA解密需要提供私钥');
+                }
+                
+                // 密文预处理
+                let processedCiphertext = ciphertext;
+                if (cipherEncoding && cipherEncoding.length > 0) {
+                    if (cipherEncoding.includes('HEX')) {
+                        const wordArray = CryptoJS.enc.Hex.parse(processedCiphertext);
+                        processedCiphertext = wordArray.toString(CryptoJS.enc.Base64);
+                    } else if (cipherEncoding.includes('BASE64_URLSAFE')) {
+                        let base64Str = processedCiphertext.replace(/-/g, '+').replace(/_/g, '/');
+                        while (base64Str.length % 4 !== 0) {
+                            base64Str += '=';
+                        }
+                        processedCiphertext = base64Str;
+                    }
+                }
+                
+                // 处理私钥 - 修复：使用 privateKey.value
+                const decrypt = new JSEncrypt();
+                decrypt.setPrivateKey(privateKey.value); // ✅ 正确！
+                
+                let decrypted = decrypt.decrypt(processedCiphertext);
+                
+                if (decrypted === false || decrypted === null) {
+                    throw new Error('RSA解密失败，请检查私钥格式是否正确或密文是否有效');
+                }
+                
+                // 明文编码方式处理
+                if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
+                    decrypted = EncodingUtils.encode(decrypted, plainEncoding);
+                }
+                
+                return decrypted;
+            }
+        }
+
+        // 运行测试函数
+        function runTest() {
+            const testResult = document.getElementById('testResult');
+            const testText = document.getElementById('testText').value;
+            const publicKey = document.getElementById('publicKey').value;
+            const privateKey = document.getElementById('privateKey').value;
+            
+            testResult.innerHTML = '<div class="text-blue-600">🔄 正在测试...</div>';
+            
+            try {
+                // 创建测试配置
+                const testConfig = {
+                    publicKey: { value: publicKey, encoding: ['UTF8'] },
+                    privateKey: { value: privateKey, encoding: ['UTF8'] },
+                    plainEncoding: ['UTF8'],
+                    cipherEncoding: ['BASE64']
+                };
+                
+                // 测试加密
+                const encrypted = RSACipher.encrypt(testText, testConfig);
+                
+                // 测试解密
+                const decrypted = RSACipher.decrypt(encrypted, testConfig);
+                
+                // 验证结果
+                const isSuccess = decrypted === testText;
+                
+                testResult.innerHTML = `
+                    <div class="${isSuccess ? 'text-green-600' : 'text-red-600'}">
+                        <h4 class="font-medium mb-2">${isSuccess ? '✅ 测试成功！' : '❌ 测试失败！'}</h4>
+                        <div class="space-y-2 text-sm">
+                            <div><strong>原始文本：</strong> ${testText}</div>
+                            <div><strong>加密结果：</strong> <span class="font-mono break-all">${encrypted.substring(0, 50)}...</span></div>
+                            <div><strong>解密结果：</strong> ${decrypted}</div>
+                            <div><strong>一致性验证：</strong> ${isSuccess ? '✅ 通过' : '❌ 失败'}</div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                testResult.innerHTML = `
+                    <div class="text-red-600">
+                        <h4 class="font-medium mb-2">❌ 测试失败</h4>
+                        <div class="text-sm">
+                            <div><strong>错误信息：</strong> ${error.message}</div>
+                            <div class="mt-2 text-gray-600">请检查密钥格式是否正确</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

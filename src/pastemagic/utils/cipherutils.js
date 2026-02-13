@@ -116,6 +116,63 @@ class EncodingUtils {
     
     return result;
   }
+
+  /**
+   * 解析复合编码字符串
+   * @param {string} encodingString - 编码字符串，支持+号分隔
+   * @returns {string[]} 编码方式数组
+   */
+  static parseCompoundEncoding(encodingString) {
+    if (!encodingString) return ['UTF8'];
+    return encodingString.split('+').map(enc => enc.trim()).filter(enc => enc);
+  }
+
+  /**
+   * 格式化编码数组为字符串
+   * @param {string[]} encodings - 编码方式数组
+   * @returns {string} 格式化后的编码字符串
+   */
+  static formatEncoding(encodings) {
+    return encodings.join('+');
+  }
+
+  /**
+   * 处理明文编码 - 加密时使用
+   * 根据明文编码配置对明文进行预处理
+   * @param {string} plaintext - 原始明文
+   * @param {string[]} plainEncoding - 明文编码方式数组
+   * @returns {string} 处理后的明文
+   */
+  static processPlaintextEncoding(plaintext, plainEncoding = ['UTF8']) {
+    // 明文编码方式处理：如果指定了非UTF8的编码方式，需要先解码
+    let processedPlaintext = plaintext;
+    
+    if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
+      // 如果明文是以其他编码方式存储的，需要先解码为UTF8
+      processedPlaintext = this.decode(plaintext, plainEncoding);
+    }
+    
+    return processedPlaintext;
+  }
+
+  /**
+   * 处理明文解码 - 解密后使用
+   * 根据明文编码配置对解密后的明文进行后处理
+   * @param {string} plaintext - 解密后的明文（UTF8格式）
+   * @param {string[]} plainEncoding - 明文编码方式数组
+   * @returns {string} 处理后的明文
+   */
+  static processPlaintextDecoding(plaintext, plainEncoding = ['UTF8']) {
+    // 明文解码处理：如果需要输出为非UTF8格式，需要重新编码
+    let processedPlaintext = plaintext;
+    
+    if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
+      // 如果需要输出为其他编码格式，需要重新编码
+      processedPlaintext = this.encode(plaintext, plainEncoding);
+    }
+    
+    return processedPlaintext;
+  }
 }
 
 /**
@@ -228,6 +285,35 @@ class AESCipher {
     
     decrypted = CryptoJS.AES.decrypt(ciphertext, keyWordArray, decryptOptions);
     
+    // 针对CTR模式的特殊处理：手动移除可能的零填充
+    if (modeUpper === 'CTR') {
+      // 获取原始字节数组
+      const words = decrypted.words;
+      const sigBytes = decrypted.sigBytes;
+      
+      // 转换为Uint8Array
+      const bytes = new Uint8Array(sigBytes);
+      for (let i = 0; i < sigBytes; i++) {
+        const wordIndex = Math.floor(i / 4);
+        const byteIndex = i % 4;
+        bytes[i] = (words[wordIndex] >>> (24 - byteIndex * 8)) & 0xff;
+      }
+      
+      // 查找并移除末尾的零字节填充
+      let actualLength = sigBytes;
+      for (let i = sigBytes - 1; i >= 0; i--) {
+        if (bytes[i] === 0) {
+          actualLength = i;
+        } else {
+          break;
+        }
+      }
+      
+      // 只取有效部分转换为字符串
+      const validBytes = bytes.slice(0, actualLength);
+      return new TextDecoder().decode(validBytes);
+    }
+    
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
 }
@@ -257,14 +343,9 @@ class RSACipher {
     }
     
     // 处理公钥
-    let parsedPublicKey = publicKey.value;
-    if (publicKey.encoding && publicKey.encoding.length > 0) {
-      parsedPublicKey = EncodingUtils.decode(publicKey.value, publicKey.encoding);
-    }
-    
     // 使用JSEncrypt进行RSA加密（适用于浏览器环境）
     const encrypt = new JSEncrypt();
-    encrypt.setPublicKey(parsedPublicKey);
+    encrypt.setPublicKey(publicKey.value);
     
     let encrypted = encrypt.encrypt(processedPlaintext);
     
@@ -321,14 +402,9 @@ class RSACipher {
     }
     
     // 处理私钥
-    let parsedPrivateKey = privateKey.value;
-    if (privateKey.encoding && privateKey.encoding.length > 0) {
-      parsedPrivateKey = EncodingUtils.decode(privateKey.value, privateKey.encoding);
-    }
-    
     // 使用JSEncrypt进行RSA解密（适用于浏览器环境）
     const decrypt = new JSEncrypt();
-    decrypt.setPrivateKey(parsedPrivateKey);
+    decrypt.setPrivateKey(privateKey.value);
     
     let decrypted = decrypt.decrypt(processedCiphertext);
     
@@ -449,12 +525,8 @@ export class CipherUtils {
   static encrypt(plaintext, config) {
     const { algorithm, plainEncoding = ['UTF8'], cipherEncoding = ['BASE64'] } = config;
     
-    // 明文编码方式处理：如果指定了非UTF8的编码方式，需要先解码
-    let processedPlaintext = plaintext;
-    if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
-      // 如果明文是以其他编码方式存储的，需要先解码为UTF8
-      processedPlaintext = EncodingUtils.decode(plaintext, plainEncoding);
-    }
+    // 处理明文编码
+    const processedPlaintext = EncodingUtils.processPlaintextEncoding(plaintext, plainEncoding);
     
     // 解析算法配置: AES/CBC/PKCS5Padding
     const algParts = algorithm.split('/');
@@ -491,11 +563,36 @@ export class CipherUtils {
         throw new Error(`不支持的加密算法: ${algorithm}`);
     }
     
-    // 对密文进行后处理编码
-    if (cipherEncoding && cipherEncoding.length > 0 && !cipherEncoding.includes('BASE64')) {
-      // 如果不是 BASE64，需要特殊处理
-      const wordArray = CryptoJS.enc.Base64.parse(ciphertext);
-      ciphertext = EncodingUtils.encode(wordArray, cipherEncoding);
+    // 对密文进行后处理编码 - 支持复合编码
+    if (cipherEncoding && cipherEncoding.length > 0) {
+      // 处理复合编码：从左到右依次应用编码方式
+      let wordArray = CryptoJS.enc.Base64.parse(ciphertext);
+      
+      // 注意：密文编码的处理顺序是从外到内（与明文编码相反）
+      // 因为密文通常是Base64格式，我们需要将其转换为目标格式
+      for (let i = 0; i < cipherEncoding.length; i++) {
+        const encoding = cipherEncoding[i];
+        switch (encoding.toUpperCase()) {
+          case 'BASE64':
+            // 已经是Base64格式，无需转换
+            break;
+          case 'HEX':
+            ciphertext = wordArray.toString(CryptoJS.enc.Hex);
+            wordArray = CryptoJS.enc.Hex.parse(ciphertext);
+            break;
+          case 'BASE64_URLSAFE':
+            ciphertext = wordArray.toString(CryptoJS.enc.Base64)
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=/g, '');
+            // URL安全Base64不是CryptoJS的标准格式，直接返回字符串
+            return ciphertext;
+          default:
+            // 使用EncodingUtils处理其他编码方式
+            ciphertext = EncodingUtils.encode(wordArray, [encoding]);
+            wordArray = CryptoJS.enc.Base64.parse(ciphertext);
+        }
+      }
     }
     
     return ciphertext;
@@ -514,13 +611,40 @@ export class CipherUtils {
     const algParts = algorithm.split('/');
     const mainAlgorithm = algParts[0].toUpperCase();
     
-    // 密文预处理：通常密文已经是正确的格式，不需要额外解码
-    // 只有在特殊情况下才需要处理
+    // 密文预处理：支持复合编码的逆向处理
     let processedCiphertext = ciphertext;
     
-    // 特殊处理：如果是 SM4 且输出为 HEX，则直接使用
-    if (mainAlgorithm === 'SM4' && cipherEncoding.includes('HEX')) {
-      // SM4 密文已经是 hex 格式，不需要额外处理
+    // 如果有复合编码，需要按逆序进行解码处理
+    if (cipherEncoding && cipherEncoding.length > 1) {
+      // 从右到左逆序处理编码（解码顺序与编码顺序相反）
+      for (let i = cipherEncoding.length - 1; i >= 0; i--) {
+        const encoding = cipherEncoding[i];
+        switch (encoding.toUpperCase()) {
+          case 'BASE64':
+            // Base64是默认格式，通常不需要特殊处理
+            break;
+          case 'HEX':
+            // 如果输入是Hex格式，需要转换为Base64
+            const wordArrayFromHex = CryptoJS.enc.Hex.parse(processedCiphertext);
+            processedCiphertext = wordArrayFromHex.toString(CryptoJS.enc.Base64);
+            break;
+          case 'BASE64_URLSAFE':
+            // URL安全Base64需要恢复为标准Base64
+            let standardBase64 = processedCiphertext
+              .replace(/-/g, '+')
+              .replace(/_/g, '/');
+            while (standardBase64.length % 4 !== 0) {
+              standardBase64 += '=';
+            }
+            processedCiphertext = standardBase64;
+            break;
+          default:
+            // 使用EncodingUtils处理其他编码方式的解码
+            processedCiphertext = EncodingUtils.decode(processedCiphertext, [encoding]);
+        }
+      }
+    } else if (mainAlgorithm === 'SM4' && cipherEncoding.includes('HEX')) {
+      // 特殊处理：如果是 SM4 且输出为 HEX，则直接使用
       processedCiphertext = ciphertext;
     }
     // 对于AES等算法，密文通常已经是Base64格式，可以直接使用
@@ -548,11 +672,8 @@ export class CipherUtils {
         throw new Error(`不支持的解密算法: ${algorithm}`);
     }
     
-    // 明文编码方式处理：如果指定了非UTF8的编码方式，需要重新编码
-    if (plainEncoding && plainEncoding.length > 0 && !plainEncoding.includes('UTF8')) {
-      // 解密得到的是UTF8格式，如果需要其他编码格式，需要重新编码
-      plaintext = EncodingUtils.encode(plaintext, plainEncoding);
-    }
+    // 处理明文解码
+    plaintext = EncodingUtils.processPlaintextDecoding(plaintext, plainEncoding);
     
     return plaintext;
   }
