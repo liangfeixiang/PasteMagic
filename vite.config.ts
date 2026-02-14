@@ -48,8 +48,8 @@ export default defineConfig({
         rollupOptions: {
 
             input: {
-                popup: "src/pastemagic/popup/popup.html",
-                options: "src/pastemagic/options/options.html"
+                popup: "src/pastekit/popup/popup.html",
+                options: "src/pastekit/options/options.html"
             },
             output: {
                 entryFileNames: "assets/[name].js",
